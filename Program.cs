@@ -35,11 +35,11 @@ class Program
 
         try
         {
-            // CSVファイルの内容を標準出力にダンプ
-            DumpCsvFile(csvFilePath);
-            
             // システム処理フラグを解析
-            ParseSystemFlags(csvFilePath);
+            var (serverNeededFlags, clientNeededFlags, isArrayFlags, columnNames) = ParseSystemFlags(csvFilePath);
+            
+            // 実データをダンプ
+            DumpActualData(csvFilePath, columnNames, serverNeededFlags, clientNeededFlags, isArrayFlags);
             return 0;
         }
         catch (Exception ex)
@@ -49,35 +49,13 @@ class Program
         }
     }
 
-    /// <summary>
-    /// CSVファイルを読み込んで全行を標準出力にダンプする
-    /// </summary>
-    /// <param name="filePath">読み込むCSVファイルのパス</param>
-    static void DumpCsvFile(string filePath)
-    {
-        Console.WriteLine($"=== CSVファイル '{filePath}' の内容 ===");
-        Console.WriteLine();
-
-        int lineNumber = 1;
-        using (var reader = new StreamReader(filePath))
-        {
-            string? line;
-            while ((line = reader.ReadLine()) != null)
-            {
-                Console.WriteLine($"{lineNumber:D4}: {line}");
-                lineNumber++;
-            }
-        }
-
-        Console.WriteLine();
-        Console.WriteLine($"=== 合計 {lineNumber - 1} 行 ===");
-    }
 
     /// <summary>
     /// CSVファイルからシステム処理フラグ（server_needed、client_needed、is_array）を解析してList型変数に格納する
     /// </summary>
     /// <param name="filePath">解析するCSVファイルのパス</param>
-    static void ParseSystemFlags(string filePath)
+    /// <returns>システム処理フラグとカラム名のタプル</returns>
+    static (List<bool> ServerNeeded, List<bool> ClientNeeded, List<bool> IsArray, List<string> ColumnNames) ParseSystemFlags(string filePath)
     {
         var serverNeededFlags = new List<bool>();
         var clientNeededFlags = new List<bool>();
@@ -89,57 +67,43 @@ class Program
 
         using (var reader = new StreamReader(filePath))
         {
-            int lineNumber = 1;
             string? line;
+            bool foundColumnNameRow = false;
             
-            while ((line = reader.ReadLine()) != null && lineNumber <= 4)
+            while ((line = reader.ReadLine()) != null && !foundColumnNameRow)
             {
                 var columns = line.Split(',');
+                var firstColumn = columns[0].Trim();
                 
-                switch (lineNumber)
+                if (firstColumn == "server_needed")
                 {
-                    case 1: // server_needed行
-                        if (columns[0] == "server_needed")
-                        {
-                            for (int i = 1; i < columns.Length; i++)
-                            {
-                                serverNeededFlags.Add(columns[i].Trim().Equals("TRUE", StringComparison.OrdinalIgnoreCase));
-                            }
-                        }
-                        break;
-                        
-                    case 2: // client_needed行
-                        if (columns[0] == "client_needed")
-                        {
-                            for (int i = 1; i < columns.Length; i++)
-                            {
-                                clientNeededFlags.Add(columns[i].Trim().Equals("TRUE", StringComparison.OrdinalIgnoreCase));
-                            }
-                        }
-                        break;
-                        
-                    case 3: // is_array行
-                        if (columns[0] == "is_array")
-                        {
-                            for (int i = 1; i < columns.Length; i++)
-                            {
-                                isArrayFlags.Add(columns[i].Trim().Equals("TRUE", StringComparison.OrdinalIgnoreCase));
-                            }
-                        }
-                        break;
-                        
-                    case 4: // column_name行
-                        if (columns[0] == "column_name")
-                        {
-                            for (int i = 1; i < columns.Length; i++)
-                            {
-                                columnNames.Add(columns[i].Trim());
-                            }
-                        }
-                        break;
+                    for (int i = 1; i < columns.Length; i++)
+                    {
+                        serverNeededFlags.Add(columns[i].Trim().Equals("TRUE", StringComparison.OrdinalIgnoreCase));
+                    }
                 }
-                
-                lineNumber++;
+                else if (firstColumn == "client_needed")
+                {
+                    for (int i = 1; i < columns.Length; i++)
+                    {
+                        clientNeededFlags.Add(columns[i].Trim().Equals("TRUE", StringComparison.OrdinalIgnoreCase));
+                    }
+                }
+                else if (firstColumn == "is_array")
+                {
+                    for (int i = 1; i < columns.Length; i++)
+                    {
+                        isArrayFlags.Add(columns[i].Trim().Equals("TRUE", StringComparison.OrdinalIgnoreCase));
+                    }
+                }
+                else if (firstColumn == "column_name")
+                {
+                    for (int i = 1; i < columns.Length; i++)
+                    {
+                        columnNames.Add(columns[i].Trim());
+                    }
+                    foundColumnNameRow = true;
+                }
             }
         }
 
@@ -158,6 +122,66 @@ class Program
             Console.WriteLine($"  client_needed: {clientFlag}");
             Console.WriteLine($"  is_array: {arrayFlag}");
             Console.WriteLine();
+        }
+        
+        return (serverNeededFlags, clientNeededFlags, isArrayFlags, columnNames);
+    }
+
+    /// <summary>
+    /// column_name行以降の実データをダンプする（システム処理フラグ情報付き）
+    /// </summary>
+    /// <param name="filePath">読み込むCSVファイルのパス</param>
+    /// <param name="columnNames">カラム名のリスト</param>
+    /// <param name="serverNeededFlags">サーバーAPIに必要なカラムフラグ</param>
+    /// <param name="clientNeededFlags">クライアントAPIに必要なカラムフラグ</param>
+    /// <param name="isArrayFlags">配列を示すカラムフラグ</param>
+    static void DumpActualData(string filePath, List<string> columnNames, List<bool> serverNeededFlags, List<bool> clientNeededFlags, List<bool> isArrayFlags)
+    {
+        Console.WriteLine();
+        Console.WriteLine("=== 実データのダンプ ===");
+
+        using (var reader = new StreamReader(filePath))
+        {
+            string? line;
+            bool foundColumnNameRow = false;
+            
+            // column_name行が見つかるまでスキップ
+            while ((line = reader.ReadLine()) != null && !foundColumnNameRow)
+            {
+                var firstColumn = line.Split(',')[0].Trim();
+                if (firstColumn == "column_name")
+                {
+                    foundColumnNameRow = true;
+                }
+            }
+            
+            // 実データを読み込み・表示
+            int dataRowNumber = 1;
+            while ((line = reader.ReadLine()) != null)
+            {
+                if (string.IsNullOrWhiteSpace(line)) continue;
+                
+                var columns = line.Split(',');
+                
+                Console.WriteLine($"データ行 {dataRowNumber}:");
+                for (int i = 0; i < Math.Min(columns.Length, columnNames.Count); i++)
+                {
+                    var serverFlag = i < serverNeededFlags.Count ? serverNeededFlags[i] : false;
+                    var clientFlag = i < clientNeededFlags.Count ? clientNeededFlags[i] : false;
+                    var arrayFlag = i < isArrayFlags.Count ? isArrayFlags[i] : false;
+                    
+                    var flagIndicator = "";
+                    if (serverFlag) flagIndicator += "[S]";
+                    if (clientFlag) flagIndicator += "[C]";
+                    if (arrayFlag) flagIndicator += "[A]";
+                    
+                    Console.WriteLine($"  {columnNames[i]}{flagIndicator}: {columns[i]}");
+                }
+                Console.WriteLine();
+                dataRowNumber++;
+            }
+            
+            Console.WriteLine($"=== 実データ合計 {dataRowNumber - 1} 行 ===");
         }
     }
 }
