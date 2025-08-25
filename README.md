@@ -1,7 +1,7 @@
 # 20250825_masterdata_sheet_parser_cs
 
   概要：
-  - MasterDataSheetParser.csproj: .NET 8.0ベースのコンソールアプリケーションプロジェクト
+  - MasterDataSheetParser.csproj: .NET 9.0ベースのコンソールアプリケーションプロジェクト
   - Program.cs: CSVファイルを読み込んで行番号付きで標準出力にダンプするメイン実装
 
   使用方法：
