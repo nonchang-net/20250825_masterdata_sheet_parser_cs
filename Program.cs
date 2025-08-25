@@ -2,30 +2,62 @@ using System;
 using System.IO;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 
 namespace MasterDataSheetParser;
 
 /// <summary>
-/// CSVファイルを読み込んで標準出力にダンプするCLIツール
+/// CSVファイルを読み込んでJSONまたはダンプ形式で出力するCLIツール
 /// </summary>
 class Program
 {
     /// <summary>
     /// アプリケーションのエントリーポイント
     /// </summary>
-    /// <param name="args">コマンドライン引数。CSVファイルのパスを期待</param>
+    /// <param name="args">コマンドライン引数。[出力モード] CSVファイルパスを期待</param>
     /// <returns>正常終了時は0、エラー時は1</returns>
     static int Main(string[] args)
     {
         // コマンドライン引数の検証
         if (args.Length == 0)
         {
-            Console.WriteLine("使用方法: dotnet run <CSVファイルパス>");
-            Console.WriteLine("例: dotnet run data.csv");
+            Console.WriteLine("使用方法: dotnet run [出力モード] <CSVファイルパス>");
+            Console.WriteLine("出力モード: json (デフォルト) または dump");
+            Console.WriteLine("例: dotnet run data.csv          (JSON出力)");
+            Console.WriteLine("例: dotnet run json data.csv     (JSON出力)");
+            Console.WriteLine("例: dotnet run dump data.csv     (ダンプ出力)");
             return 1;
         }
 
-        string csvFilePath = args[0];
+        // 引数を解析
+        string outputMode = "json"; // デフォルトはJSON出力
+        string csvFilePath;
+        
+        if (args.Length == 1)
+        {
+            // ファイルパスのみの場合
+            csvFilePath = args[0];
+        }
+        else if (args.Length == 2)
+        {
+            // 出力モードとファイルパスが指定された場合
+            string firstArg = args[0].ToLower();
+            if (firstArg == "json" || firstArg == "dump")
+            {
+                outputMode = firstArg;
+                csvFilePath = args[1];
+            }
+            else
+            {
+                Console.WriteLine("エラー: 無効な出力モードです。'json' または 'dump' を指定してください。");
+                return 1;
+            }
+        }
+        else
+        {
+            Console.WriteLine("エラー: 引数が多すぎます。");
+            return 1;
+        }
 
         // ファイルの存在確認
         if (!File.Exists(csvFilePath))
@@ -39,8 +71,15 @@ class Program
             // システム処理フラグを解析
             var (serverNeededFlags, clientNeededFlags, isArrayFlags, columnNames) = ParseSystemFlags(csvFilePath);
             
-            // 実データをダンプ
-            DumpActualData(csvFilePath, columnNames, serverNeededFlags, clientNeededFlags, isArrayFlags);
+            // 出力モードに応じた処理
+            if (outputMode == "json")
+            {
+                OutputAsJson(csvFilePath, columnNames, serverNeededFlags, clientNeededFlags, isArrayFlags);
+            }
+            else
+            {
+                DumpActualData(csvFilePath, columnNames, serverNeededFlags, clientNeededFlags, isArrayFlags);
+            }
             return 0;
         }
         catch (Exception ex)
@@ -488,5 +527,124 @@ class Program
         }
         
         return group;
+    }
+    
+    /// <summary>
+    /// データをJSON形式で出力する
+    /// </summary>
+    /// <param name="filePath">読み込むCSVファイルのパス</param>
+    /// <param name="columnNames">カラム名のリスト</param>
+    /// <param name="serverNeededFlags">サーバーAPIに必要なカラムフラグ</param>
+    /// <param name="clientNeededFlags">クライアントAPIに必要なカラムフラグ</param>
+    /// <param name="isArrayFlags">配列を示すカラムフラグ</param>
+    static void OutputAsJson(string filePath, List<string> columnNames, List<bool> serverNeededFlags, List<bool> clientNeededFlags, List<bool> isArrayFlags)
+    {
+        var resultData = new
+        {
+            metadata = new
+            {
+                columns = columnNames.Select((name, index) => new
+                {
+                    name = name,
+                    server_needed = index < serverNeededFlags.Count && serverNeededFlags[index],
+                    client_needed = index < clientNeededFlags.Count && clientNeededFlags[index],
+                    is_array = index < isArrayFlags.Count && isArrayFlags[index]
+                }).ToList()
+            },
+            data = ParseDataRows(filePath, columnNames, serverNeededFlags, clientNeededFlags, isArrayFlags)
+        };
+        
+        var jsonOptions = new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        };
+        
+        string jsonOutput = JsonSerializer.Serialize(resultData, jsonOptions);
+        Console.WriteLine(jsonOutput);
+    }
+    
+    /// <summary>
+    /// CSVファイルから実データを解析してJSON用の構造化データを作成する
+    /// </summary>
+    /// <param name="filePath">読み込むCSVファイルのパス</param>
+    /// <param name="columnNames">カラム名のリスト</param>
+    /// <param name="serverNeededFlags">サーバーAPIに必要なカラムフラグ</param>
+    /// <param name="clientNeededFlags">クライアントAPIに必要なカラムフラグ</param>
+    /// <param name="isArrayFlags">配列を示すカラムフラグ</param>
+    /// <returns>JSON用の構造化データ</returns>
+    static List<Dictionary<string, object>> ParseDataRows(string filePath, List<string> columnNames, List<bool> serverNeededFlags, List<bool> clientNeededFlags, List<bool> isArrayFlags)
+    {
+        var dataRows = new List<Dictionary<string, object>>();
+        
+        using var reader = new StreamReader(filePath);
+        string[]? columns;
+        bool foundColumnNameRow = false;
+        
+        // column_name行が見つかるまでスキップ
+        while ((columns = ParseCsvLine(reader)) != null && !foundColumnNameRow)
+        {
+            var firstColumn = columns[0].Trim();
+            if (firstColumn == "column_name")
+            {
+                foundColumnNameRow = true;
+            }
+        }
+        
+        // 実データを読み込み
+        var allRows = new List<string[]>();
+        while ((columns = ParseCsvLine(reader)) != null)
+        {
+            allRows.Add(columns);
+        }
+        
+        // 配列データを集計しながらJSON形式に変換
+        for (int rowIndex = 0; rowIndex < allRows.Count; rowIndex++)
+        {
+            var currentRow = allRows[rowIndex];
+            
+            // メイン行かどうかを判定
+            bool isMainRow = IsMainDataRow(currentRow, columnNames, isArrayFlags);
+            
+            if (isMainRow)
+            {
+                var rowData = new Dictionary<string, object>();
+                int dataStartIndex = 1;
+                var processedArrayColumns = new HashSet<int>();
+                
+                for (int i = 0; i < columnNames.Count && (i + dataStartIndex) < currentRow.Length; i++)
+                {
+                    var columnName = columnNames[i];
+                    var arrayFlag = i < isArrayFlags.Count && isArrayFlags[i];
+                    
+                    if (arrayFlag)
+                    {
+                        // 配列グループの最初のカラムかどうかを確認
+                        var arrayGroup = GetArrayColumnGroup(i, isArrayFlags);
+                        if (arrayGroup.Count > 0 && i == arrayGroup.Min() && !processedArrayColumns.Contains(i))
+                        {
+                            // 配列データの集計
+                            var arrayItems = CollectArrayData(allRows, rowIndex, i, columnNames, isArrayFlags, dataStartIndex);
+                            rowData[columnName] = arrayItems;
+                            
+                            // グループ内の他のカラムも処理済みとしてマーク
+                            foreach (var colIndex in arrayGroup)
+                            {
+                                processedArrayColumns.Add(colIndex);
+                            }
+                        }
+                    }
+                    else if (!processedArrayColumns.Contains(i))
+                    {
+                        var value = currentRow[i + dataStartIndex];
+                        rowData[columnName] = value;
+                    }
+                }
+                
+                dataRows.Add(rowData);
+            }
+        }
+        
+        return dataRows;
     }
 }
