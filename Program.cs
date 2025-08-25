@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace MasterDataSheetParser;
 
@@ -279,32 +280,207 @@ class Program
                 }
             }
             
-            // 実データを読み込み・表示
+            // 実データを読み込み・表示（配列データ集計付き）
             int dataRowNumber = 1;
+            var allRows = new List<string[]>();
+            
+            // まず全行を読み込む
             while ((columns = ParseCsvLine(reader)) != null)
             {
-                Console.WriteLine($"データ行 {dataRowNumber}:");
+                allRows.Add(columns);
+            }
+            
+            // 配列データを集計しながら表示
+            for (int rowIndex = 0; rowIndex < allRows.Count; rowIndex++)
+            {
+                var currentRow = allRows[rowIndex];
                 
-                // 実データは1列目が空白なので、カラム1から開始してカラム名[0]から対応させる
-                int dataStartIndex = 1; // 実データの開始インデックス
-                for (int i = 0; i < columnNames.Count && (i + dataStartIndex) < columns.Length; i++)
+                // メイン行かどうかを判定（1列目が空白でない、または重要データが含まれる）
+                bool isMainRow = IsMainDataRow(currentRow, columnNames, isArrayFlags);
+                
+                if (isMainRow)
                 {
-                    var serverFlag = i < serverNeededFlags.Count ? serverNeededFlags[i] : false;
-                    var clientFlag = i < clientNeededFlags.Count ? clientNeededFlags[i] : false;
-                    var arrayFlag = i < isArrayFlags.Count ? isArrayFlags[i] : false;
+                    Console.WriteLine($"データ行 {dataRowNumber}:");
                     
-                    var flagIndicator = "";
-                    if (serverFlag) flagIndicator += "[S]";
-                    if (clientFlag) flagIndicator += "[C]";
-                    if (arrayFlag) flagIndicator += "[A]";
+                    // 実データは1列目が空白なので、カラム1から開始してカラム名[0]から対応させる
+                    int dataStartIndex = 1;
+                    var processedData = new Dictionary<string, object>();
                     
-                    Console.WriteLine($"  {columnNames[i]}{flagIndicator}: {columns[i + dataStartIndex]}");
+                    for (int i = 0; i < columnNames.Count && (i + dataStartIndex) < currentRow.Length; i++)
+                    {
+                        var columnName = columnNames[i];
+                        var serverFlag = i < serverNeededFlags.Count && serverNeededFlags[i];
+                        var clientFlag = i < clientNeededFlags.Count && clientNeededFlags[i];
+                        var arrayFlag = i < isArrayFlags.Count && isArrayFlags[i];
+                        
+                        var flagIndicator = "";
+                        if (serverFlag) flagIndicator += "[S]";
+                        if (clientFlag) flagIndicator += "[C]";
+                        if (arrayFlag) flagIndicator += "[A]";
+                        
+                        if (arrayFlag)
+                        {
+                            // 配列データの集計
+                            var arrayItems = CollectArrayData(allRows, rowIndex, i, columnNames, isArrayFlags, dataStartIndex);
+                            var arrayDisplay = string.Join(":", arrayItems);
+                            Console.WriteLine($"  {columnName}{flagIndicator}: {arrayDisplay}");
+                            processedData[columnName] = arrayItems;
+                        }
+                        else
+                        {
+                            var value = currentRow[i + dataStartIndex];
+                            Console.WriteLine($"  {columnName}{flagIndicator}: {value}");
+                            processedData[columnName] = value;
+                        }
+                    }
+                    Console.WriteLine();
+                    dataRowNumber++;
                 }
-                Console.WriteLine();
-                dataRowNumber++;
             }
             
             Console.WriteLine($"=== 実データ合計 {dataRowNumber - 1} 行 ===");
         }
+    }
+
+    /// <summary>
+    /// メイン行かどうかを判定する（配列データの続きの行でないかを確認）
+    /// </summary>
+    /// <param name="row">チェックする行</param>
+    /// <param name="columnNames">カラム名リスト</param>
+    /// <param name="isArrayFlags">配列フラグリスト</param>
+    /// <returns>メイン行の場合true</returns>
+    static bool IsMainDataRow(string[] row, List<string> columnNames, List<bool> isArrayFlags)
+    {
+        if (row.Length < 2) return false;
+        
+        // 1列目が空でない場合はメイン行
+        if (!string.IsNullOrWhiteSpace(row[0])) return true;
+        
+        // 配列行の判定：is_arrayフラグがfalseのカラムにデータがあるかチェック
+        int dataStartIndex = 1;
+        
+        for (int i = 0; i < columnNames.Count && (i + dataStartIndex) < row.Length; i++)
+        {
+            var isArrayColumn = i < isArrayFlags.Count && isArrayFlags[i];
+            
+            if (!isArrayColumn) // is_arrayフラグがfalseのカラム
+            {
+                if (!string.IsNullOrWhiteSpace(row[i + dataStartIndex]))
+                {
+                    return true; // 非配列カラムにデータがある場合はメイン行
+                }
+            }
+        }
+        
+        return false; // is_arrayカラムのみにデータがある場合は配列データ行
+    }
+
+    /// <summary>
+    /// 指定したカラムの配列データを収集する
+    /// </summary>
+    /// <param name="allRows">全データ行</param>
+    /// <param name="startRowIndex">開始行インデックス</param>
+    /// <param name="columnIndex">対象カラムのインデックス</param>
+    /// <param name="columnNames">カラム名リスト</param>
+    /// <param name="isArrayFlags">配列フラグリスト</param>
+    /// <param name="dataStartIndex">データ開始インデックス</param>
+    /// <returns>配列データのリスト</returns>
+    static List<string> CollectArrayData(List<string[]> allRows, int startRowIndex, int columnIndex, List<string> columnNames, List<bool> isArrayFlags, int dataStartIndex)
+    {
+        var arrayItems = new List<string>();
+        var columnName = columnNames[columnIndex];
+        
+        // is_arrayフラグがついている連続するカラムグループを特定
+        var arrayGroup = GetArrayColumnGroup(columnIndex, isArrayFlags);
+        
+        if (arrayGroup.Count > 0)
+        {
+            // メイン行のデータを取得
+            var mainRow = allRows[startRowIndex];
+            var mainRowValues = new List<string>();
+            
+            foreach (var colIndex in arrayGroup)
+            {
+                if ((colIndex + dataStartIndex) < mainRow.Length)
+                {
+                    mainRowValues.Add(mainRow[colIndex + dataStartIndex]);
+                }
+            }
+            
+            if (mainRowValues.Any(v => !string.IsNullOrWhiteSpace(v)))
+            {
+                arrayItems.Add(string.Join(",", mainRowValues));
+            }
+            
+            // 続く行の配列データを収集
+            for (int i = startRowIndex + 1; i < allRows.Count; i++)
+            {
+                var row = allRows[i];
+                if (IsMainDataRow(row, columnNames, isArrayFlags)) break; // 次のメイン行に到達したら終了
+                
+                var rowValues = new List<string>();
+                foreach (var colIndex in arrayGroup)
+                {
+                    if ((colIndex + dataStartIndex) < row.Length)
+                    {
+                        rowValues.Add(row[colIndex + dataStartIndex]);
+                    }
+                }
+                
+                if (rowValues.Any(v => !string.IsNullOrWhiteSpace(v)))
+                {
+                    arrayItems.Add(string.Join(",", rowValues));
+                }
+            }
+            
+            // グループの最初のカラムの場合のみ結果を返す（重複を避けるため）
+            if (columnIndex == arrayGroup.Min())
+            {
+                return arrayItems;
+            }
+        }
+        
+        return new List<string>(); // グループの最初以外またはグループ外のカラムでは空を返す
+    }
+
+    /// <summary>
+    /// 指定されたカラムが属するis_arrayフラグのグループを取得する
+    /// </summary>
+    /// <param name="columnIndex">対象カラムのインデックス</param>
+    /// <param name="isArrayFlags">配列フラグリスト</param>
+    /// <returns>連続する配列カラムのインデックスリスト</returns>
+    static List<int> GetArrayColumnGroup(int columnIndex, List<bool> isArrayFlags)
+    {
+        var group = new List<int>();
+        
+        if (columnIndex >= isArrayFlags.Count || !isArrayFlags[columnIndex])
+        {
+            return group; // 対象カラムが配列でない場合は空のグループを返す
+        }
+        
+        // 対象カラムから左方向に連続する配列カラムを探す
+        int start = columnIndex;
+        while (start > 0 && start - 1 < isArrayFlags.Count && isArrayFlags[start - 1])
+        {
+            start--;
+        }
+        
+        // 対象カラムから右方向に連続する配列カラムを探す
+        int end = columnIndex;
+        while (end + 1 < isArrayFlags.Count && isArrayFlags[end + 1])
+        {
+            end++;
+        }
+        
+        // グループに追加
+        for (int i = start; i <= end; i++)
+        {
+            if (i < isArrayFlags.Count && isArrayFlags[i])
+            {
+                group.Add(i);
+            }
+        }
+        
+        return group;
     }
 }
