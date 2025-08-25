@@ -11,10 +11,10 @@ CSVファイルを読み込んで、JSON形式またはダンプ形式で出力�
 
 ```bash
 # プロジェクトをビルド
-dotnet build
+dotnet build MasterDataSheetParser.csproj
 
 # リリースビルド
-dotnet build --configuration Release
+dotnet build MasterDataSheetParser.csproj --configuration Release
 ```
 
 ## 使用方法
