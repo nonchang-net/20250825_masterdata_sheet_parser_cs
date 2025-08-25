@@ -6,14 +6,14 @@ namespace MasterDataSheetParser;
 /// <summary>
 /// CSVファイルを読み込んでJSONまたはダンプ形式で出力するCLIツール
 /// </summary>
-class Program
+public class Program
 {
     /// <summary>
     /// アプリケーションのエントリーポイント
     /// </summary>
     /// <param name="args">コマンドライン引数。[出力モード] CSVファイルパスを期待</param>
     /// <returns>正常終了時は0、エラー時は1</returns>
-    static int Main(string[] args)
+    public static int Main(string[] args)
     {
         // コマンドライン引数の検証
         if (args.Length == 0)

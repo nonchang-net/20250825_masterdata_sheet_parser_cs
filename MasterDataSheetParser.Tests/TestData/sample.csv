@@ -1,0 +1,9 @@
+server_needed,TRUE,TRUE,FALSE,TRUE
+client_needed,TRUE,FALSE,TRUE,TRUE
+is_array,FALSE,FALSE,FALSE,TRUE
+column_name,id,name,description,items
+1,Actor1,"テストアクター1","これは1番目のテストアクターです",Item1
+,,,"",Item2
+,,,"",Item3
+2,Actor2,"テストアクター2","これは2番目のテストアクターです",Item4
+,,,"",Item5
