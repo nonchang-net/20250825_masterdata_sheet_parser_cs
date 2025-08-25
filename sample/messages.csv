@@ -1,0 +1,6 @@
+server_needed,,,,,FALSE,FALSE
+client_needed,,,,,TRUE,TRUE
+is_array,,,,,FALSE,FALSE
+column_name,id,ver,envs,name,ja,en
+,52bd783f-b962-401c-bc54-58f8def8e5e6,0.0.1,ALL,様子を見ている,様子を見ている,watching the situation
+,b1d4f3c3-85cb-4d2d-9901-9eeefba7393a,0.0.1,ALL,,,

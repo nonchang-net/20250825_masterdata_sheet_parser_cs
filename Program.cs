@@ -645,19 +645,18 @@ class Program
         
         using var reader = new StreamReader(filePath);
         string[]? columns;
-        bool foundColumnNameRow = false;
         
         // column_name行が見つかるまでスキップ
-        while ((columns = ParseCsvLine(reader)) != null && !foundColumnNameRow)
+        while ((columns = ParseCsvLine(reader)) != null)
         {
             var firstColumn = columns[0].Trim();
             if (firstColumn == "column_name")
             {
-                foundColumnNameRow = true;
+                break; // column_name行を見つけたらループを抜ける
             }
         }
         
-        // 実データを読み込み
+        // 実データを読み込み（column_name行の次の行から）
         var allRows = new List<string[]>();
         while ((columns = ParseCsvLine(reader)) != null)
         {
@@ -869,19 +868,18 @@ class Program
         
         using var reader = new StreamReader(filePath);
         string[]? columns;
-        bool foundColumnNameRow = false;
         
         // column_name行が見つかるまでスキップ
-        while ((columns = ParseCsvLine(reader)) != null && !foundColumnNameRow)
+        while ((columns = ParseCsvLine(reader)) != null)
         {
             var firstColumn = columns[0].Trim();
             if (firstColumn == "column_name")
             {
-                foundColumnNameRow = true;
+                break; // column_name行を見つけたらループを抜ける
             }
         }
         
-        // 実データを読み込み
+        // 実データを読み込み（column_name行の次の行から）
         var allRows = new List<string[]>();
         while ((columns = ParseCsvLine(reader)) != null)
         {

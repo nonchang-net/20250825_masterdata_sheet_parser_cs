@@ -1,0 +1,14 @@
+server_needed,,,,,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE
+client_needed,,,,,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE
+is_array,,,,,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,TRUE,TRUE,TRUE,TRUE
+column_name,id,ver,envs,name,is_enemy,hp,mp,attack,deffence,agility,inventories,inventory_id,quantity,equipped
+,2f0e0def-e011-4ed5-aa6b-3e08ec612994,0.0.1,ALL,勇者,FALSE,100,50,40,10,10,疾風の剣,7f6ca1a7-5786-46d3-b9d0-726864b4a7f9,1,TRUE
+,,,,,FALSE,,,,,,回復薬(小),47d1f068-924c-4982-8786-0c2cc87a91fc,1,FALSE
+,3cbb6983-60b9-4162-b60b-85fc003cb9e3,0.0.1,ALL,戦士,FALSE,120,0,50,10,8,鉄の剣,0aa41d8d-1747-422f-bdae-e941f41c2683,1,TRUE
+,,,,,FALSE,,,,,,回復薬(小),47d1f068-924c-4982-8786-0c2cc87a91fc,3,FALSE
+,e5a0de4c-11e6-46bd-a65c-cab799237161,0.0.1,ALL,僧侶,FALSE,80,100,10,10,6,回復魔法(小),8c563334-92a2-47d3-912d-aad30ddd3248,1,FALSE
+,120c7388-8224-43be-8624-4726a93d3ff1,0.0.1,ALL,ドラゴン,TRUE,400,0,30,20,10,炎を吐くLv3,1dd69c97-a078-4034-91a4-432e977c667a,1,FALSE
+,16ab3d53-a686-4326-96d9-fc27c08f7ae1,0.0.1,ALL,魔王,TRUE,800,30,30,10,8,様子を見ている,617a162c-36fc-4f8b-8b59-a7df2bcdf5ad,1,FALSE
+,,,,,FALSE,,,,,,魔王の2回攻撃,38f338c4-396f-43e1-9f31-f502fed404ac,1,FALSE
+,d674256e-875f-4afc-833b-3fdcc3086aa9,0.0.1,ALL,魔神官,TRUE,200,9,10,10,6,様子を見ている,617a162c-36fc-4f8b-8b59-a7df2bcdf5ad,1,FALSE
+,,,,,FALSE,,,,,,回復魔法(小),8c563334-92a2-47d3-912d-aad30ddd3248,1,FALSE
