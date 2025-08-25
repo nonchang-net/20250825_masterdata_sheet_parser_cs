@@ -67,12 +67,11 @@ class Program
 
         using (var reader = new StreamReader(filePath))
         {
-            string? line;
+            string[]? columns;
             bool foundColumnNameRow = false;
             
-            while ((line = reader.ReadLine()) != null && !foundColumnNameRow)
+            while ((columns = ParseCsvLine(reader)) != null && !foundColumnNameRow)
             {
-                var columns = line.Split(',');
                 var firstColumn = columns[0].Trim();
                 
                 if (firstColumn == "server_needed")
@@ -128,6 +127,131 @@ class Program
     }
 
     /// <summary>
+    /// CSV行を適切にパースし、ダブルクォート内の改行やカンマを考慮してフィールドに分割する
+    /// </summary>
+    /// <param name="reader">StreamReader</param>
+    /// <returns>パースされたフィールド配列、またはnull（EOF）</returns>
+    static string[]? ParseCsvLine(StreamReader reader)
+    {
+        var fields = new List<string>();
+        var currentField = new System.Text.StringBuilder();
+        bool inQuotes = false;
+        bool fieldStarted = false;
+
+        while (true)
+        {
+            int ch = reader.Read();
+            if (ch == -1) // EOF
+            {
+                if (fieldStarted || fields.Count > 0)
+                {
+                    fields.Add(currentField.ToString());
+                    return fields.ToArray();
+                }
+                return null;
+            }
+
+            char c = (char)ch;
+
+            if (!fieldStarted)
+            {
+                if (c == '"')
+                {
+                    inQuotes = true;
+                    fieldStarted = true;
+                }
+                else if (c == ',')
+                {
+                    fields.Add("");
+                }
+                else if (c == '\r' || c == '\n')
+                {
+                    if (c == '\r')
+                    {
+                        // CRLFの場合、LFもスキップ
+                        if (reader.Peek() == '\n')
+                            reader.Read();
+                    }
+                    if (fields.Count > 0 || currentField.Length > 0)
+                    {
+                        fields.Add(currentField.ToString());
+                        return fields.ToArray();
+                    }
+                }
+                else
+                {
+                    currentField.Append(c);
+                    fieldStarted = true;
+                }
+            }
+            else if (inQuotes)
+            {
+                if (c == '"')
+                {
+                    // 次の文字を確認
+                    int nextCh = reader.Peek();
+                    if (nextCh == '"')
+                    {
+                        // エスケープされたクォート
+                        reader.Read();
+                        currentField.Append('"');
+                    }
+                    else
+                    {
+                        // クォート終了
+                        inQuotes = false;
+                    }
+                }
+                else if (c == '\r' || c == '\n')
+                {
+                    // クォート内の改行はエスケープシーケンスに変換
+                    if (c == '\r' && reader.Peek() == '\n')
+                    {
+                        reader.Read(); // LFも読み込み
+                        currentField.Append("\\r\\n");
+                    }
+                    else if (c == '\n')
+                    {
+                        currentField.Append("\\n");
+                    }
+                    else
+                    {
+                        currentField.Append("\\r");
+                    }
+                }
+                else
+                {
+                    currentField.Append(c);
+                }
+            }
+            else
+            {
+                if (c == ',')
+                {
+                    fields.Add(currentField.ToString());
+                    currentField.Clear();
+                    fieldStarted = false;
+                }
+                else if (c == '\r' || c == '\n')
+                {
+                    if (c == '\r')
+                    {
+                        // CRLFの場合、LFもスキップ
+                        if (reader.Peek() == '\n')
+                            reader.Read();
+                    }
+                    fields.Add(currentField.ToString());
+                    return fields.ToArray();
+                }
+                else
+                {
+                    currentField.Append(c);
+                }
+            }
+        }
+    }
+
+    /// <summary>
     /// column_name行以降の実データをダンプする（システム処理フラグ情報付き）
     /// </summary>
     /// <param name="filePath">読み込むCSVファイルのパス</param>
@@ -142,13 +266,13 @@ class Program
 
         using (var reader = new StreamReader(filePath))
         {
-            string? line;
+            string[]? columns;
             bool foundColumnNameRow = false;
             
             // column_name行が見つかるまでスキップ
-            while ((line = reader.ReadLine()) != null && !foundColumnNameRow)
+            while ((columns = ParseCsvLine(reader)) != null && !foundColumnNameRow)
             {
-                var firstColumn = line.Split(',')[0].Trim();
+                var firstColumn = columns[0].Trim();
                 if (firstColumn == "column_name")
                 {
                     foundColumnNameRow = true;
@@ -157,14 +281,13 @@ class Program
             
             // 実データを読み込み・表示
             int dataRowNumber = 1;
-            while ((line = reader.ReadLine()) != null)
+            while ((columns = ParseCsvLine(reader)) != null)
             {
-                if (string.IsNullOrWhiteSpace(line)) continue;
-                
-                var columns = line.Split(',');
-                
                 Console.WriteLine($"データ行 {dataRowNumber}:");
-                for (int i = 0; i < Math.Min(columns.Length, columnNames.Count); i++)
+                
+                // 実データは1列目が空白なので、カラム1から開始してカラム名[0]から対応させる
+                int dataStartIndex = 1; // 実データの開始インデックス
+                for (int i = 0; i < columnNames.Count && (i + dataStartIndex) < columns.Length; i++)
                 {
                     var serverFlag = i < serverNeededFlags.Count ? serverNeededFlags[i] : false;
                     var clientFlag = i < clientNeededFlags.Count ? clientNeededFlags[i] : false;
@@ -175,7 +298,7 @@ class Program
                     if (clientFlag) flagIndicator += "[C]";
                     if (arrayFlag) flagIndicator += "[A]";
                     
-                    Console.WriteLine($"  {columnNames[i]}{flagIndicator}: {columns[i]}");
+                    Console.WriteLine($"  {columnNames[i]}{flagIndicator}: {columns[i + dataStartIndex]}");
                 }
                 Console.WriteLine();
                 dataRowNumber++;
