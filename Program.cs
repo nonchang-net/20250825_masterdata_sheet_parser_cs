@@ -320,11 +320,17 @@ class Program
                         
                         if (arrayFlag)
                         {
-                            // 配列データの集計
-                            var arrayItems = CollectArrayData(allRows, rowIndex, i, columnNames, isArrayFlags, dataStartIndex);
-                            var arrayDisplay = string.Join(":", arrayItems);
-                            Console.WriteLine($"  {columnName}{flagIndicator}: {arrayDisplay}");
-                            processedData[columnName] = arrayItems;
+                            // 配列グループの最初のカラムかどうかを確認
+                            var arrayGroup = GetArrayColumnGroup(i, isArrayFlags);
+                            if (arrayGroup.Count > 0 && i == arrayGroup.Min())
+                            {
+                                // 配列データの集計（グループの最初のカラムのみ出力）
+                                var arrayItems = CollectArrayData(allRows, rowIndex, i, columnNames, isArrayFlags, dataStartIndex);
+                                var arrayDisplay = string.Join(":", arrayItems);
+                                Console.WriteLine($"  {columnName}{flagIndicator}: {arrayDisplay}");
+                                processedData[columnName] = arrayItems;
+                            }
+                            // グループの最初でない場合は出力しない
                         }
                         else
                         {
