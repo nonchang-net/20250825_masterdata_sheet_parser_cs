@@ -68,16 +68,17 @@ class Program
 
         try
         {
-            // システム処理フラグを解析
-            var (serverNeededFlags, clientNeededFlags, isArrayFlags, columnNames) = ParseSystemFlags(csvFilePath);
-            
             // 出力モードに応じた処理
             if (outputMode == "json")
             {
+                // JSON出力時はログ出力を抑制
+                var (serverNeededFlags, clientNeededFlags, isArrayFlags, columnNames) = ParseSystemFlags(csvFilePath, suppressOutput: true);
                 OutputAsJson(csvFilePath, columnNames, serverNeededFlags, clientNeededFlags, isArrayFlags);
             }
             else
             {
+                // ダンプ出力時は詳細ログを出力
+                var (serverNeededFlags, clientNeededFlags, isArrayFlags, columnNames) = ParseSystemFlags(csvFilePath, suppressOutput: false);
                 DumpActualData(csvFilePath, columnNames, serverNeededFlags, clientNeededFlags, isArrayFlags);
             }
             return 0;
@@ -94,16 +95,20 @@ class Program
     /// CSVファイルからシステム処理フラグ（server_needed、client_needed、is_array）を解析してList型変数に格納する
     /// </summary>
     /// <param name="filePath">解析するCSVファイルのパス</param>
+    /// <param name="suppressOutput">出力を抑制するかどうか（JSON出力時はtrue）</param>
     /// <returns>システム処理フラグとカラム名のタプル</returns>
-    static (List<bool> ServerNeeded, List<bool> ClientNeeded, List<bool> IsArray, List<string> ColumnNames) ParseSystemFlags(string filePath)
+    static (List<bool> ServerNeeded, List<bool> ClientNeeded, List<bool> IsArray, List<string> ColumnNames) ParseSystemFlags(string filePath, bool suppressOutput = false)
     {
         var serverNeededFlags = new List<bool>(10);
         var clientNeededFlags = new List<bool>(10);
         var isArrayFlags = new List<bool>(10);
         var columnNames = new List<string>(10);
 
-        Console.WriteLine();
-        Console.WriteLine("=== システム処理フラグの解析 ===");
+        if (!suppressOutput)
+        {
+            Console.WriteLine();
+            Console.WriteLine("=== システム処理フラグの解析 ===");
+        }
 
         using (var reader = new StreamReader(filePath))
         {
@@ -146,21 +151,24 @@ class Program
             }
         }
 
-        // 解析結果を出力
-        Console.WriteLine($"カラム数: {columnNames.Count}");
-        Console.WriteLine();
-        
-        for (int i = 0; i < columnNames.Count; i++)
+        // 解析結果を出力（JSON出力時は抑制）
+        if (!suppressOutput)
         {
-            var serverFlag = i < serverNeededFlags.Count ? serverNeededFlags[i] : false;
-            var clientFlag = i < clientNeededFlags.Count ? clientNeededFlags[i] : false;
-            var arrayFlag = i < isArrayFlags.Count ? isArrayFlags[i] : false;
-            
-            Console.WriteLine($"カラム[{i}]: {columnNames[i]}");
-            Console.WriteLine($"  server_needed: {serverFlag}");
-            Console.WriteLine($"  client_needed: {clientFlag}");
-            Console.WriteLine($"  is_array: {arrayFlag}");
+            Console.WriteLine($"カラム数: {columnNames.Count}");
             Console.WriteLine();
+            
+            for (int i = 0; i < columnNames.Count; i++)
+            {
+                var serverFlag = i < serverNeededFlags.Count ? serverNeededFlags[i] : false;
+                var clientFlag = i < clientNeededFlags.Count ? clientNeededFlags[i] : false;
+                var arrayFlag = i < isArrayFlags.Count ? isArrayFlags[i] : false;
+                
+                Console.WriteLine($"カラム[{i}]: {columnNames[i]}");
+                Console.WriteLine($"  server_needed: {serverFlag}");
+                Console.WriteLine($"  client_needed: {clientFlag}");
+                Console.WriteLine($"  is_array: {arrayFlag}");
+                Console.WriteLine();
+            }
         }
         
         return (serverNeededFlags, clientNeededFlags, isArrayFlags, columnNames);
