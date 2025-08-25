@@ -1,0 +1,87 @@
+﻿{
+  "3cbb6983-60b9-4162-b60b-85fc003cb9e3": {
+    "name": "戦士",
+    "is_enemy": "FALSE",
+    "hp": "120",
+    "mp": "0",
+    "attack": "50",
+    "deffence": "10",
+    "agility": "8",
+    "inventories": [
+      {
+        "inventories": "鉄の剣",
+        "inventory_id": "0aa41d8d-1747-422f-bdae-e941f41c2683",
+        "quantity": "1",
+        "equipped": "TRUE"
+      }
+    ]
+  },
+  "e5a0de4c-11e6-46bd-a65c-cab799237161": {
+    "name": "僧侶",
+    "is_enemy": "FALSE",
+    "hp": "80",
+    "mp": "100",
+    "attack": "10",
+    "deffence": "10",
+    "agility": "6",
+    "inventories": [
+      {
+        "inventories": "回復魔法(小)",
+        "inventory_id": "8c563334-92a2-47d3-912d-aad30ddd3248",
+        "quantity": "1",
+        "equipped": "FALSE"
+      }
+    ]
+  },
+  "120c7388-8224-43be-8624-4726a93d3ff1": {
+    "name": "ドラゴン",
+    "is_enemy": "TRUE",
+    "hp": "400",
+    "mp": "0",
+    "attack": "30",
+    "deffence": "20",
+    "agility": "10",
+    "inventories": [
+      {
+        "inventories": "炎を吐くLv3",
+        "inventory_id": "1dd69c97-a078-4034-91a4-432e977c667a",
+        "quantity": "1",
+        "equipped": "FALSE"
+      }
+    ]
+  },
+  "16ab3d53-a686-4326-96d9-fc27c08f7ae1": {
+    "name": "魔王",
+    "is_enemy": "TRUE",
+    "hp": "800",
+    "mp": "30",
+    "attack": "30",
+    "deffence": "10",
+    "agility": "8",
+    "inventories": [
+      {
+        "inventories": "様子を見ている",
+        "inventory_id": "617a162c-36fc-4f8b-8b59-a7df2bcdf5ad",
+        "quantity": "1",
+        "equipped": "FALSE"
+      }
+    ]
+  },
+  "d674256e-875f-4afc-833b-3fdcc3086aa9": {
+    "name": "魔神官",
+    "is_enemy": "TRUE",
+    "hp": "200",
+    "mp": "9",
+    "attack": "10",
+    "deffence": "10",
+    "agility": "6",
+    "inventories": [
+      {
+        "inventories": "様子を見ている",
+        "inventory_id": "617a162c-36fc-4f8b-8b59-a7df2bcdf5ad",
+        "quantity": "1",
+        "equipped": "FALSE"
+      }
+    ]
+  }
+}

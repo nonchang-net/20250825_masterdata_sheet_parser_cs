@@ -21,12 +21,13 @@ class Program
         // コマンドライン引数の検証
         if (args.Length == 0)
         {
-            Console.WriteLine("使用方法: dotnet run [出力モード] <CSVファイルパス>");
-            Console.WriteLine("出力モード: json2 (デフォルト), json, または dump");
-            Console.WriteLine("例: dotnet run data.csv          (JSON2出力)");
-            Console.WriteLine("例: dotnet run json data.csv     (JSON出力)");
-            Console.WriteLine("例: dotnet run json2 data.csv    (JSON2連想配列出力)");
-            Console.WriteLine("例: dotnet run dump data.csv     (ダンプ出力)");
+            Console.WriteLine("使用方法: dotnet run [出力モード] <CSVファイルパス/フォルダパス>");
+            Console.WriteLine("出力モード: json2 (デフォルト), json, dump, または batchConvert");
+            Console.WriteLine("例: dotnet run data.csv            (JSON2出力)");
+            Console.WriteLine("例: dotnet run json data.csv       (JSON出力)");
+            Console.WriteLine("例: dotnet run json2 data.csv      (JSON2連想配列出力)");
+            Console.WriteLine("例: dotnet run dump data.csv       (ダンプ出力)");
+            Console.WriteLine("例: dotnet run batchConvert ./csv/ (フォルダ内CSVを一括JSON2変換)");
             return 1;
         }
 
@@ -43,14 +44,14 @@ class Program
         {
             // 出力モードとファイルパスが指定された場合
             string firstArg = args[0].ToLower();
-            if (firstArg == "json" || firstArg == "json2" || firstArg == "dump")
+            if (firstArg == "json" || firstArg == "json2" || firstArg == "dump" || firstArg == "batchconvert")
             {
                 outputMode = firstArg;
                 csvFilePath = args[1];
             }
             else
             {
-                Console.WriteLine("エラー: 無効な出力モードです。'json', 'json2', または 'dump' を指定してください。");
+                Console.WriteLine("エラー: 無効な出力モードです。'json', 'json2', 'dump', または 'batchConvert' を指定してください。");
                 return 1;
             }
         }
@@ -60,11 +61,22 @@ class Program
             return 1;
         }
 
-        // ファイルの存在確認
-        if (!File.Exists(csvFilePath))
+        // ファイルまたはフォルダの存在確認
+        if (outputMode == "batchconvert")
         {
-            Console.WriteLine($"エラー: ファイル '{csvFilePath}' が見つかりません。");
-            return 1;
+            if (!Directory.Exists(csvFilePath))
+            {
+                Console.WriteLine($"エラー: フォルダ '{csvFilePath}' が見つかりません。");
+                return 1;
+            }
+        }
+        else
+        {
+            if (!File.Exists(csvFilePath))
+            {
+                Console.WriteLine($"エラー: ファイル '{csvFilePath}' が見つかりません。");
+                return 1;
+            }
         }
 
         try
@@ -81,6 +93,11 @@ class Program
                 // JSON2出力時はログ出力を抑制
                 var (serverNeededFlags, clientNeededFlags, isArrayFlags, columnNames) = ParseSystemFlags(csvFilePath, suppressOutput: true);
                 OutputAsJson2(csvFilePath, columnNames, serverNeededFlags, clientNeededFlags, isArrayFlags);
+            }
+            else if (outputMode == "batchconvert")
+            {
+                // バッチ変換処理
+                BatchConvertCsvToJson2(csvFilePath);
             }
             else
             {
@@ -970,5 +987,97 @@ class Program
         }
         
         return dataRows;
+    }
+    
+    /// <summary>
+    /// 指定フォルダ内のCSVファイルをすべてJSON2形式に変換し、元のCSVファイルを削除する
+    /// </summary>
+    /// <param name="folderPath">変換対象のフォルダパス</param>
+    static void BatchConvertCsvToJson2(string folderPath)
+    {
+        try
+        {
+            // フォルダ内のCSVファイルを取得
+            string[] csvFiles = Directory.GetFiles(folderPath, "*.csv", SearchOption.TopDirectoryOnly);
+            
+            if (csvFiles.Length == 0)
+            {
+                Console.WriteLine($"フォルダ '{folderPath}' 内にCSVファイルが見つかりません。");
+                return;
+            }
+            
+            Console.WriteLine($"フォルダ '{folderPath}' 内の {csvFiles.Length} 個のCSVファイルを変換します...");
+            
+            int successCount = 0;
+            int errorCount = 0;
+            
+            foreach (string csvFilePath in csvFiles)
+            {
+                try
+                {
+                    // ファイル名から拡張子を除いてJSONファイル名を作成
+                    string fileName = Path.GetFileNameWithoutExtension(csvFilePath);
+                    string jsonFilePath = Path.Combine(folderPath, fileName + ".json");
+                    
+                    Console.WriteLine($"変換中: {Path.GetFileName(csvFilePath)} -> {Path.GetFileName(jsonFilePath)}");
+                    
+                    // システム処理フラグを解析
+                    var (serverNeededFlags, clientNeededFlags, isArrayFlags, columnNames) = ParseSystemFlags(csvFilePath, suppressOutput: true);
+                    
+                    // JSON2形式でデータを取得
+                    var dataRows = ParseDataRowsForJson2(csvFilePath, columnNames, serverNeededFlags, clientNeededFlags, isArrayFlags);
+                    
+                    // ID列のインデックスを取得
+                    int idColumnIndex = columnNames.FindIndex(name => name.Equals("id", StringComparison.OrdinalIgnoreCase));
+                    
+                    var resultData = new Dictionary<string, Dictionary<string, object>>();
+                    
+                    foreach (var row in dataRows)
+                    {
+                        // ID列の値をキーとして使用
+                        string idKey = "";
+                        if (idColumnIndex >= 0 && row.ContainsKey("id"))
+                        {
+                            idKey = row["id"]?.ToString() ?? "";
+                            // オブジェクト内容からidを除外
+                            row.Remove("id");
+                        }
+                        
+                        if (!string.IsNullOrEmpty(idKey))
+                        {
+                            resultData[idKey] = row;
+                        }
+                    }
+                    
+                    // JSONファイルとして保存
+                    var jsonOptions = new JsonSerializerOptions
+                    {
+                        WriteIndented = true,
+                        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+                    };
+                    
+                    string jsonContent = JsonSerializer.Serialize(resultData, jsonOptions);
+                    File.WriteAllText(jsonFilePath, jsonContent, System.Text.Encoding.UTF8);
+                    
+                    // 元のCSVファイルを削除
+                    File.Delete(csvFilePath);
+                    
+                    successCount++;
+                    Console.WriteLine($"完了: {Path.GetFileName(jsonFilePath)}");
+                }
+                catch (Exception ex)
+                {
+                    errorCount++;
+                    Console.WriteLine($"エラー: {Path.GetFileName(csvFilePath)} の変換に失敗しました - {ex.Message}");
+                }
+            }
+            
+            Console.WriteLine();
+            Console.WriteLine($"バッチ変換完了: {successCount} 件成功, {errorCount} 件失敗");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"バッチ変換エラー: {ex.Message}");
+        }
     }
 }

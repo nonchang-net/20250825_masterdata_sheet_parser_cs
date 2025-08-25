@@ -1,0 +1,94 @@
+﻿{
+  "0aa41d8d-1747-422f-bdae-e941f41c2683": {
+    "name": "鉄の剣",
+    "price": "1000",
+    "commands": [
+      {
+        "commands": "単純攻撃マクロ",
+        "command_id": "568eb6ba-9fbf-43b7-a061-cd4627a7c41c",
+        "arg1": "10",
+        "arg2": null,
+        "arg3": null
+      }
+    ]
+  },
+  "7f6ca1a7-5786-46d3-b9d0-726864b4a7f9": {
+    "name": "疾風の剣",
+    "price": "28000",
+    "commands": [
+      {
+        "commands": "複数回攻撃ルール設定",
+        "command_id": "e8572cd3-346e-4bd8-80b9-1b8344332b49",
+        "arg1": "3",
+        "arg2": null,
+        "arg3": null
+      }
+    ]
+  },
+  "8c563334-92a2-47d3-912d-aad30ddd3248": {
+    "name": "回復魔法(小)",
+    "price": "0",
+    "commands": [
+      {
+        "commands": "魔法回復マクロ",
+        "command_id": "63e9c4d2-983e-480c-aaad-402ffbb5d1cf",
+        "arg1": "3",
+        "arg2": "30",
+        "arg3": "20"
+      }
+    ]
+  },
+  "1dd69c97-a078-4034-91a4-432e977c667a": {
+    "name": "炎を吐くLv3",
+    "price": "0",
+    "commands": [
+      {
+        "commands": "攻撃属性「火」設定",
+        "command_id": "8cad7b21-fc6f-4383-90a0-51718c9d704f",
+        "arg1": null,
+        "arg2": null,
+        "arg3": null
+      },
+      {
+        "commands": "全体攻撃マクロ",
+        "command_id": "1024ea7f-3fd0-4aba-ae5e-192d5d28e858",
+        "arg1": "50",
+        "arg2": "30",
+        "arg3": null
+      }
+    ]
+  },
+  "617a162c-36fc-4f8b-8b59-a7df2bcdf5ad": {
+    "name": "様子を見ている",
+    "price": "0",
+    "commands": [
+      {
+        "commands": "メッセージ表示",
+        "command_id": "555a5992-e90a-4a0e-9ecf-a7279e929270",
+        "arg1": "2d691c38-724f-47fd-838d-2178c982cd68",
+        "arg2": null,
+        "arg3": null
+      }
+    ]
+  },
+  "38f338c4-396f-43e1-9f31-f502fed404ac": {
+    "name": "魔王の2回攻撃",
+    "price": "0",
+    "commands": [
+      {
+        "commands": "複数回攻撃ルール設定",
+        "command_id": "e8572cd3-346e-4bd8-80b9-1b8344332b49",
+        "arg1": "2",
+        "arg2": null,
+        "arg3": null
+      },
+      {
+        "commands": "単純攻撃マクロ",
+        "command_id": "568eb6ba-9fbf-43b7-a061-cd4627a7c41c",
+        "arg1": "30",
+        "arg2": "30",
+        "arg3": null
+      }
+    ]
+  }
+}

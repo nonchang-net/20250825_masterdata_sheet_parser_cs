@@ -17,6 +17,12 @@ dotnet build MasterDataSheetParser.csproj
 dotnet build MasterDataSheetParser.csproj --configuration Release
 ```
 
+ビルドして生成されたバイナリの実行例
+
+```bash
+./bin/Debug/net9.0/MasterDataSheetParser ./sample/20250825_2_command.csv
+```
+
 ## 使用方法
 
 ```bash
@@ -28,6 +34,9 @@ dotnet run json <CSVファイルパス>
 
 # JSON2出力（明示的）
 dotnet run json2 <CSVファイルパス>
+
+# バッチ変換（フォルダ内CSVを一括JSON2変換）
+dotnet run batchConvert <フォルダパス>
 
 # ダンプ出力（従来形式）
 dotnet run dump <CSVファイルパス>
@@ -42,6 +51,9 @@ dotnet run json2 data.csv
 
 # JSON形式で出力（配列）
 dotnet run json data.csv
+
+# バッチ変換（フォルダ内すべてのCSVファイルをJSON2形式に一括変換）
+dotnet run batchConvert ./csvフォルダ
 
 # ダンプ形式で出力
 dotnet run dump data.csv
@@ -60,6 +72,12 @@ dotnet run dump data.csv
 - 実データを配列形式のJSON構造で出力
 - 配列データの自動集計とグループ化
 - client_needed=TRUEの列のみを出力（id、nameは常時出力、ver、envsは除外）
+
+### バッチ変換モード
+- 指定フォルダ内のすべてのCSVファイルを一括でJSON2形式に変換
+- 元のCSVファイルは自動的に削除
+- エラーハンドリングと処理結果の詳細表示
+- 大量のマスターデータファイルの効率的な一括処理に最適
 
 ### ダンプ出力モード
 - システム処理フラグの詳細解析結果を表示
