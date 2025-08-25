@@ -7,23 +7,8 @@ CSVファイルを読み込んで、JSON形式またはダンプ形式で出力�
 - MasterDataSheetParser.csproj: .NET 9.0ベースのコンソールアプリケーションプロジェクト
 - Program.cs: CSVファイルのシステム処理フラグを解析し、構造化データとして出力するメイン実装
 
-## ビルド方法
 
-```bash
-# プロジェクトをビルド
-dotnet build MasterDataSheetParser.csproj
-
-# リリースビルド
-dotnet build MasterDataSheetParser.csproj --configuration Release
-```
-
-ビルドして生成されたバイナリの実行例
-
-```bash
-./bin/Debug/net9.0/MasterDataSheetParser ./sample/20250825_2_command.csv
-```
-
-## 使用方法
+## dotnet runによる使用方法
 
 ```bash
 # JSON2出力（デフォルト・ID列をキーとした連想配列形式）
@@ -57,6 +42,23 @@ dotnet run batchConvert ./csvフォルダ
 
 # ダンプ形式で出力
 dotnet run dump data.csv
+```
+
+## ビルド方法
+
+```bash
+# プロジェクトをビルド
+dotnet build MasterDataSheetParser.csproj
+
+# リリースビルド
+dotnet build MasterDataSheetParser.csproj --configuration Release
+```
+
+ビルドして生成されたバイナリの実行例
+
+```bash
+./bin/Debug/net9.0/MasterDataSheetParser ./sample/20250825_2_command.csv
+./bin/Debug/net9.0/MasterDataSheetParser batchConvert ./tempwork
 ```
 
 ## 機能
