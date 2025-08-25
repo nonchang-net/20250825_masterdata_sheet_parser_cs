@@ -20,11 +20,14 @@ dotnet build --configuration Release
 ## 使用方法
 
 ```bash
-# JSON出力（デフォルト）
+# JSON2出力（デフォルト・ID列をキーとした連想配列形式）
 dotnet run <CSVファイルパス>
 
-# JSON出力（明示的）
+# JSON出力（配列形式）
 dotnet run json <CSVファイルパス>
+
+# JSON2出力（明示的）
+dotnet run json2 <CSVファイルパス>
 
 # ダンプ出力（従来形式）
 dotnet run dump <CSVファイルパス>
@@ -33,8 +36,11 @@ dotnet run dump <CSVファイルパス>
 ## 使用例
 
 ```bash
-# JSON形式で出力
+# JSON2形式で出力（デフォルト・連想配列）
 dotnet run data.csv
+dotnet run json2 data.csv
+
+# JSON形式で出力（配列）
 dotnet run json data.csv
 
 # ダンプ形式で出力
@@ -43,10 +49,17 @@ dotnet run dump data.csv
 
 ## 機能
 
-### JSON出力モード（デフォルト）
-- システム処理フラグ（server_needed、client_needed、is_array）をメタデータとして出力
-- 実データを構造化されたJSON形式で出力
+### JSON2出力モード（デフォルト）
+- ID列をキーとした連想配列形式でJSON出力
+- マスターデータ間のリレーション解決時の検索コストを削減
 - 配列データの自動集計とグループ化
+- client_needed=TRUEの列のみを出力（nameは常時出力、id、ver、envsは除外）
+- **注意**: オブジェクト内容からidは除外（キーとして使用されるため）
+
+### JSON出力モード
+- 実データを配列形式のJSON構造で出力
+- 配列データの自動集計とグループ化
+- client_needed=TRUEの列のみを出力（id、nameは常時出力、ver、envsは除外）
 
 ### ダンプ出力モード
 - システム処理フラグの詳細解析結果を表示
