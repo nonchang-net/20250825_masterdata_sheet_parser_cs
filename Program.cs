@@ -530,7 +530,7 @@ class Program
     }
     
     /// <summary>
-    /// データをJSON形式で出力する
+    /// データをJSON形式で出力する（ゲーム用データのみ、metadataは除外）
     /// </summary>
     /// <param name="filePath">読み込むCSVファイルのパス</param>
     /// <param name="columnNames">カラム名のリスト</param>
@@ -539,20 +539,7 @@ class Program
     /// <param name="isArrayFlags">配列を示すカラムフラグ</param>
     static void OutputAsJson(string filePath, List<string> columnNames, List<bool> serverNeededFlags, List<bool> clientNeededFlags, List<bool> isArrayFlags)
     {
-        var resultData = new
-        {
-            metadata = new
-            {
-                columns = columnNames.Select((name, index) => new
-                {
-                    name = name,
-                    server_needed = index < serverNeededFlags.Count && serverNeededFlags[index],
-                    client_needed = index < clientNeededFlags.Count && clientNeededFlags[index],
-                    is_array = index < isArrayFlags.Count && isArrayFlags[index]
-                }).ToList()
-            },
-            data = ParseDataRows(filePath, columnNames, serverNeededFlags, clientNeededFlags, isArrayFlags)
-        };
+        var resultData = ParseDataRows(filePath, columnNames, serverNeededFlags, clientNeededFlags, isArrayFlags);
         
         var jsonOptions = new JsonSerializerOptions
         {
@@ -576,6 +563,9 @@ class Program
     static List<Dictionary<string, object>> ParseDataRows(string filePath, List<string> columnNames, List<bool> serverNeededFlags, List<bool> clientNeededFlags, List<bool> isArrayFlags)
     {
         var dataRows = new List<Dictionary<string, object>>();
+        
+        // envsカラムのインデックスを取得
+        int envsColumnIndex = columnNames.FindIndex(name => name.Equals("envs", StringComparison.OrdinalIgnoreCase));
         
         using var reader = new StreamReader(filePath);
         string[]? columns;
@@ -608,11 +598,26 @@ class Program
             
             if (isMainRow)
             {
+                // envsカラムに「DISABLED」が設定されている場合は除外
+                if (envsColumnIndex >= 0)
+                {
+                    int dataStartIndex = 1;
+                    int envsDataIndex = envsColumnIndex + dataStartIndex;
+                    if (envsDataIndex < currentRow.Length)
+                    {
+                        string envsValue = currentRow[envsDataIndex].Trim();
+                        if (envsValue.Equals("DISABLED", StringComparison.OrdinalIgnoreCase))
+                        {
+                            continue; // この行は除外してスキップ
+                        }
+                    }
+                }
+                
                 var rowData = new Dictionary<string, object>();
-                int dataStartIndex = 1;
+                int dataStartIndex2 = 1;
                 var processedArrayColumns = new HashSet<int>();
                 
-                for (int i = 0; i < columnNames.Count && (i + dataStartIndex) < currentRow.Length; i++)
+                for (int i = 0; i < columnNames.Count && (i + dataStartIndex2) < currentRow.Length; i++)
                 {
                     var columnName = columnNames[i];
                     var arrayFlag = i < isArrayFlags.Count && isArrayFlags[i];
@@ -624,7 +629,7 @@ class Program
                         if (arrayGroup.Count > 0 && i == arrayGroup.Min() && !processedArrayColumns.Contains(i))
                         {
                             // 配列データの集計
-                            var arrayItems = CollectArrayData(allRows, rowIndex, i, columnNames, isArrayFlags, dataStartIndex);
+                            var arrayItems = CollectArrayData(allRows, rowIndex, i, columnNames, isArrayFlags, dataStartIndex2);
                             rowData[columnName] = arrayItems;
                             
                             // グループ内の他のカラムも処理済みとしてマーク
@@ -636,7 +641,7 @@ class Program
                     }
                     else if (!processedArrayColumns.Contains(i))
                     {
-                        var value = currentRow[i + dataStartIndex];
+                        var value = currentRow[i + dataStartIndex2];
                         rowData[columnName] = value;
                     }
                 }

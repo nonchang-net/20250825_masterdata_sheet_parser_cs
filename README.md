@@ -1,20 +1,62 @@
-# 20250825_masterdata_sheet_parser_cs
+# MasterDataSheetParser
 
-  概要：
-  - MasterDataSheetParser.csproj: .NET 9.0ベースのコンソールアプリケーションプロジェクト
-  - Program.cs: CSVファイルを読み込んで行番号付きで標準出力にダンプするメイン実装
+CSVファイルを読み込んで、JSON形式またはダンプ形式で出力するCLIツールです。
 
-  使用方法：
-  dotnet run <CSVファイルパス>
+## 概要
 
-  例：
-  dotnet run data.csv
+- MasterDataSheetParser.csproj: .NET 9.0ベースのコンソールアプリケーションプロジェクト
+- Program.cs: CSVファイルのシステム処理フラグを解析し、構造化データとして出力するメイン実装
 
-  ツールは以下の機能を提供します：
-  - コマンドライン引数でCSVファイルパスを受け取り
-  - ファイルの存在確認とエラーハンドリング
-  - 全行を行番号（4桁0埋め）付きで標準出力にダンプ
-  - 読み込み行数の合計表示
+## ビルド方法
+
+```bash
+# プロジェクトをビルド
+dotnet build
+
+# リリースビルド
+dotnet build --configuration Release
+```
+
+## 使用方法
+
+```bash
+# JSON出力（デフォルト）
+dotnet run <CSVファイルパス>
+
+# JSON出力（明示的）
+dotnet run json <CSVファイルパス>
+
+# ダンプ出力（従来形式）
+dotnet run dump <CSVファイルパス>
+```
+
+## 使用例
+
+```bash
+# JSON形式で出力
+dotnet run data.csv
+dotnet run json data.csv
+
+# ダンプ形式で出力
+dotnet run dump data.csv
+```
+
+## 機能
+
+### JSON出力モード（デフォルト）
+- システム処理フラグ（server_needed、client_needed、is_array）をメタデータとして出力
+- 実データを構造化されたJSON形式で出力
+- 配列データの自動集計とグループ化
+
+### ダンプ出力モード
+- システム処理フラグの詳細解析結果を表示
+- 実データを読みやすいテキスト形式で出力
+- 配列データの集計結果を「:」区切りで表示
+
+### 共通機能
+- ファイルの存在確認とエラーハンドリング
+- CSV内のダブルクォート対応と改行文字のエスケープ処理
+- is_arrayフラグによる動的な配列データグループ判定
 
 ## 既知の課題
 
