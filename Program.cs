@@ -57,10 +57,10 @@ class Program
     /// <returns>システム処理フラグとカラム名のタプル</returns>
     static (List<bool> ServerNeeded, List<bool> ClientNeeded, List<bool> IsArray, List<string> ColumnNames) ParseSystemFlags(string filePath)
     {
-        var serverNeededFlags = new List<bool>();
-        var clientNeededFlags = new List<bool>();
-        var isArrayFlags = new List<bool>();
-        var columnNames = new List<string>();
+        var serverNeededFlags = new List<bool>(10);
+        var clientNeededFlags = new List<bool>(10);
+        var isArrayFlags = new List<bool>(10);
+        var columnNames = new List<string>(10);
 
         Console.WriteLine();
         Console.WriteLine("=== システム処理フラグの解析 ===");
