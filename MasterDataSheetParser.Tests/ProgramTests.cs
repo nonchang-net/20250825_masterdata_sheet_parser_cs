@@ -43,10 +43,10 @@ public class ProgramTests
     }
 
     /// <summary>
-    /// 引数が多すぎる場合のテスト
+    /// 非sheetsDownloadモードで引数が多すぎる場合のテスト
     /// </summary>
     [Fact]
-    public void Main_TooManyArguments_ReturnsErrorCode()
+    public void Main_TooManyArgumentsForNonSheetsDownload_ReturnsErrorCode()
     {
         // Arrange
         var args = new string[] { "json", "file.csv", "extra_arg" };
@@ -64,7 +64,103 @@ public class ProgramTests
             // Assert
             Assert.Equal(1, result);
             var output = stringWriter.ToString();
-            Assert.Contains("引数が多すぎます", output);
+            // sheetsDownload以外のモードでは3番目の引数は無視され、ファイルが見つからないエラーになる
+            Assert.Contains("ファイル", output);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+        }
+    }
+
+    /// <summary>
+    /// sheetsDownloadモードで複数シート名指定のテスト
+    /// </summary>
+    [Fact]
+    public void Main_SheetsDownloadWithMultipleSheets_ProcessesArguments()
+    {
+        // Arrange
+        var args = new string[] { "sheetsDownload", "https://docs.google.com/spreadsheets/d/test/edit", "sheet1", "sheet2" };
+
+        // Capture console output
+        using var stringWriter = new StringWriter();
+        var originalOut = Console.Out;
+        Console.SetOut(stringWriter);
+
+        try
+        {
+            // Act
+            var result = Program.Main(args);
+
+            // Assert
+            // このテストでは実際のダウンロードが失敗することを期待（スプレッドシートIDが無効なため）
+            Assert.Equal(1, result);
+            var output = stringWriter.ToString();
+            Assert.Contains("Google Sheetsデータ処理開始", output);
+            Assert.Contains("sheet1, sheet2", output); // カスタムシート名が表示されることを確認
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+        }
+    }
+
+    /// <summary>
+    /// sheetsDownloadモードでフォルダ指定のテスト
+    /// </summary>
+    [Fact]
+    public void Main_SheetsDownloadWithFolderOption_ProcessesArguments()
+    {
+        // Arrange
+        var args = new string[] { "sheetsDownload", "https://docs.google.com/spreadsheets/d/test/edit", "--folder=testoutput" };
+
+        // Capture console output
+        using var stringWriter = new StringWriter();
+        var originalOut = Console.Out;
+        Console.SetOut(stringWriter);
+
+        try
+        {
+            // Act
+            var result = Program.Main(args);
+
+            // Assert
+            Assert.Equal(1, result); // 無効なスプレッドシートIDのため失敗
+            var output = stringWriter.ToString();
+            Assert.Contains("Google Sheetsデータ処理開始", output);
+            // フォルダ作成メッセージにカスタムフォルダ名が含まれることを期待
+            Assert.Contains("testoutput", output);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+        }
+    }
+
+    /// <summary>
+    /// sheetsDownloadモードでクリーンアップオプションのテスト
+    /// </summary>
+    [Fact]
+    public void Main_SheetsDownloadWithCleanupOption_ProcessesArguments()
+    {
+        // Arrange
+        var args = new string[] { "sheetsDownload", "https://docs.google.com/spreadsheets/d/test/edit", "--cleanup", "sheet1" };
+
+        // Capture console output
+        using var stringWriter = new StringWriter();
+        var originalOut = Console.Out;
+        Console.SetOut(stringWriter);
+
+        try
+        {
+            // Act
+            var result = Program.Main(args);
+
+            // Assert
+            Assert.Equal(1, result); // 無効なスプレッドシートIDのため失敗
+            var output = stringWriter.ToString();
+            Assert.Contains("Google Sheetsデータ処理開始", output);
+            Assert.Contains("sheet1", output); // シート名が表示されることを確認
         }
         finally
         {

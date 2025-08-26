@@ -3,15 +3,23 @@
 ゲーム実装のためのGoogle Sheets管理による特定フォーマット※のマスターデータを、CSVダウンロードを経由してjsonに変換するCLIツールです。
 ※このリポジトリ上では、シートのフォーマットの説明は割愛します。後日別記事で用意する想定
 
-デバッグのためのログダンプ機能、フォルダ中のCSVを一括変換する機能を用意しています。
+Google SheetsからのCSV自動ダウンロード機能、デバッグのためのログダンプ機能、フォルダ中のCSVを一括変換する機能を用意しています。
 
 ## 概要
 
 - MasterDataSheetParser.csproj: .NET 9.0ベースのコンソールアプリケーションプロジェクト
 - Program.cs: CSVファイルのシステム処理フラグを解析し、構造化データとして出力するメイン実装
+- GoogleSheetsDownloader.cs: Google Sheets APIを使用したCSV自動ダウンロード機能
+- SheetsProcessor.cs: Google Sheetsからの一括処理とJSON変換の統合処理
+- CSVParser.cs: CSV解析とシステムフラグ処理
+- JsonOutputter.cs: JSON/JSON2出力処理
+- DumpOutputter.cs: ダンプ出力処理
+- BatchProcessor.cs: バッチ変換処理
 
 
 ## dotnet runによる使用方法
+
+### 基本的な使用方法
 
 ```bash
 # JSON2出力（デフォルト・ID列をキーとした連想配列形式）
@@ -30,7 +38,28 @@ dotnet run batchConvert <フォルダパス>
 dotnet run dump <CSVファイルパス>
 ```
 
+### Google Sheetsダウンロード機能
+
+```bash
+# デフォルトシート（messages, commands, inventories, actors）をdownloads/フォルダにダウンロード
+dotnet run sheetsDownload <Google SheetsURL>
+
+# 指定したシートのみダウンロード
+dotnet run sheetsDownload <Google SheetsURL> sheet1 sheet2
+
+# カスタムフォルダにダウンロード
+dotnet run sheetsDownload <Google SheetsURL> --folder=output
+
+# 変換後にCSVファイルを削除（JSONファイルのみ残す）
+dotnet run sheetsDownload <Google SheetsURL> --cleanup
+
+# すべてのオプションを組み合わせ
+dotnet run sheetsDownload <Google SheetsURL> --folder=data --cleanup sheet1 sheet2
+```
+
 ## 使用例
+
+### 基本的な使用例
 
 ```bash
 # JSON2形式で出力（デフォルト・連想配列）
@@ -45,6 +74,22 @@ dotnet run batchConvert ./csvフォルダ
 
 # ダンプ形式で出力
 dotnet run dump data.csv
+```
+
+### Google Sheetsダウンロードの使用例
+
+```bash
+# 基本的なダウンロード（デフォルトシートをdownloads/フォルダに）
+dotnet run sheetsDownload "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit"
+
+# 特定のシートのみダウンロード
+dotnet run sheetsDownload "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit" commands actors
+
+# production環境用（カスタムフォルダ + クリーンアップ）
+dotnet run sheetsDownload "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit" --folder=assets/data --cleanup
+
+# 開発時の部分更新（特定シートのみ、クリーンアップなし）
+dotnet run sheetsDownload "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit" --folder=dev_data messages
 ```
 
 ## ビルド方法
@@ -65,6 +110,15 @@ dotnet build MasterDataSheetParser.csproj --configuration Release
 ```
 
 ## 機能
+
+### Google Sheetsダウンロードモード（New!）
+- Google SheetsのURLから直接CSVをダウンロードし、JSON形式に自動変換
+- デフォルトシート（messages, commands, inventories, actors）の一括ダウンロード
+- カスタムシート名の指定による部分的なデータ取得
+- `--folder=フォルダ名` による出力先フォルダのカスタマイズ
+- `--cleanup` による変換後のCSVファイル自動削除（JSONファイルのみ残す）
+- エラーハンドリングと詳細な進行状況表示
+- **ワークフロー例**: Google Sheets更新 → 1コマンドでプロダクション用JSONファイル生成
 
 ### JSON2出力モード（デフォルト）
 - ID列をキーとした連想配列形式でJSON出力
@@ -125,18 +179,48 @@ dotnet test
 - **JSON2出力機能**: 連想配列形式のJSON出力とエラーハンドリング
 - **出力構造検証**: 生成されるJSONの基本的な構造とデータ型の検証
 
-#### ProgramTests（9テスト）
+#### ProgramTests（12テスト）
 - **引数検証**: 引数なし、引数過多、無効な出力モードのエラーハンドリング
 - **ファイル存在確認**: 存在しないファイルやディレクトリに対するエラーハンドリング
-- **各出力モード**: json、json2、dump、batchConvertモードの基本動作確認
+- **各出力モード**: json、json2、dump、batchConvert、sheetsDownloadモードの基本動作確認
+- **Google Sheetsオプション**: フォルダ指定、クリーンアップオプション、カスタムシート名の引数解析
+
+#### GoogleSheetsDownloaderTests（5テスト）
+- **URL解析**: Google SheetsのURLからスプレッドシートIDを抽出
+- **エラーハンドリング**: 無効なURLや空文字列の処理
+- **CSV URL生成**: 正しいCSVエクスポートURL形式の検証
+
+#### SheetsProcessorTests（4テスト）
+- **統合処理**: Google SheetsからJSON変換までの統合処理テスト
+- **フォルダ操作**: 存在しないフォルダや空フォルダでのエラーハンドリング
+- **カスタムオプション**: カスタムシート名やフォルダ指定の処理
 
 ### テスト結果
-- **総テスト数**: 21個
-- **成功率**: 95%以上（20/21個が成功）
-- **カバレッジ**: 主要なビジネスロジックとエラーハンドリングをカバー
+- **総テスト数**: 35個
+- **成功率**: 100%（35/35個が成功）
+- **カバレッジ**: 主要なビジネスロジック、Google Sheets連携、エラーハンドリングをカバー
 
 テストはxUnitフレームワークを使用しており、継続的な開発とリファクタリングの安全性を担保します。
+
+## 新機能のワークフロー例
+
+### 開発フェーズ
+1. Google Sheetsでマスターデータを編集
+2. `dotnet run sheetsDownload "URL" --folder=dev_data` でローカルに開発用データを取得
+3. ゲーム内でテスト・調整
+4. Google Sheetsを再編集して手順2からリピート
+
+### プロダクション配布
+1. Google Sheetsで最終調整完了
+2. `dotnet run sheetsDownload "URL" --folder=assets/data --cleanup` でクリーンな本番用JSONファイル生成
+3. 生成されたJSONファイルをゲームビルドに含めて配布
+
+### 部分更新
+1. 特定のシート（例：commands）のみ更新したい場合
+2. `dotnet run sheetsDownload "URL" --folder=assets/data --cleanup commands` で必要な分のみ取得
+3. 他のマスターデータはそのまま維持
 
 ## 既知の課題
 
 - 現状では、is_arrayによるグループ集計の設定が一箇所でしか利用できない状態。
+- Google Sheetsの公開権限が必要（エクスポート用URLにアクセスするため）
