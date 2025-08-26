@@ -83,13 +83,15 @@ public class Program
             {
                 // JSON出力時はログ出力を抑制
                 var (serverNeededFlags, clientNeededFlags, isArrayFlags, columnNames) = CSVParser.ParseSystemFlags(csvFilePath, suppressOutput: true);
-                JsonOutputter.OutputAsJson(csvFilePath, columnNames, serverNeededFlags, clientNeededFlags, isArrayFlags);
+                var jsonOutput = JsonOutputter.OutputAsJson(csvFilePath, columnNames, serverNeededFlags, clientNeededFlags, isArrayFlags);
+                Console.WriteLine(jsonOutput);
             }
             else if (outputMode == "json2")
             {
                 // JSON2出力時はログ出力を抑制
                 var (serverNeededFlags, clientNeededFlags, isArrayFlags, columnNames) = CSVParser.ParseSystemFlags(csvFilePath, suppressOutput: true);
-                JsonOutputter.OutputAsJson2(csvFilePath, columnNames, serverNeededFlags, clientNeededFlags, isArrayFlags);
+                var json2Output = JsonOutputter.OutputAsJson2(csvFilePath, columnNames, serverNeededFlags, clientNeededFlags, isArrayFlags);
+                Console.WriteLine(json2Output);
             }
             else if (outputMode == "batchconvert")
             {

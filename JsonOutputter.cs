@@ -19,7 +19,8 @@ public class JsonOutputter
     /// <param name="serverNeededFlags">サーバーAPIに必要なカラムフラグ</param>
     /// <param name="clientNeededFlags">クライアントAPIに必要なカラムフラグ</param>
     /// <param name="isArrayFlags">配列を示すカラムフラグ</param>
-    public static void OutputAsJson(string filePath, List<string> columnNames, List<bool> serverNeededFlags, List<bool> clientNeededFlags, List<bool> isArrayFlags)
+    /// <returns>JSON形式の文字列</returns>
+    public static string OutputAsJson(string filePath, List<string> columnNames, List<bool> serverNeededFlags, List<bool> clientNeededFlags, List<bool> isArrayFlags)
     {
         var resultData = ParseDataRows(filePath, columnNames, clientNeededFlags, isArrayFlags);
         
@@ -29,8 +30,7 @@ public class JsonOutputter
             Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
         };
         
-        string jsonOutput = JsonSerializer.Serialize(resultData, jsonOptions);
-        Console.WriteLine(jsonOutput);
+        return JsonSerializer.Serialize(resultData, jsonOptions);
     }
 
     /// <summary>
@@ -41,7 +41,8 @@ public class JsonOutputter
     /// <param name="serverNeededFlags">サーバーAPIに必要なカラムフラグ</param>
     /// <param name="clientNeededFlags">クライアントAPIに必要なカラムフラグ</param>
     /// <param name="isArrayFlags">配列を示すカラムフラグ</param>
-    public static void OutputAsJson2(string filePath, List<string> columnNames, List<bool> serverNeededFlags, List<bool> clientNeededFlags, List<bool> isArrayFlags)
+    /// <returns>JSON2形式の文字列</returns>
+    public static string OutputAsJson2(string filePath, List<string> columnNames, List<bool> serverNeededFlags, List<bool> clientNeededFlags, List<bool> isArrayFlags)
     {
         var dataRows = ParseDataRowsForJson2(filePath, columnNames, clientNeededFlags, isArrayFlags);
         
@@ -73,8 +74,7 @@ public class JsonOutputter
             Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
         };
         
-        string jsonOutput = JsonSerializer.Serialize(resultData, jsonOptions);
-        Console.WriteLine(jsonOutput);
+        return JsonSerializer.Serialize(resultData, jsonOptions);
     }
     
     /// <summary>
