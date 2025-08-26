@@ -40,6 +40,7 @@ dotnet run dump <CSVファイルパス>
 
 ### Google Sheetsダウンロード機能
 
+#### HTTP経由でのダウンロード（従来方式）
 ```bash
 # デフォルトシート（messages, commands, inventories, actors）をdownloads/フォルダにダウンロード
 dotnet run sheetsDownload <Google SheetsURL>
@@ -55,7 +56,38 @@ dotnet run sheetsDownload <Google SheetsURL> --cleanup
 
 # すべてのオプションを組み合わせ
 dotnet run sheetsDownload <Google SheetsURL> --folder=data --cleanup sheet1 sheet2
+
+# テスト中URLの例
+dotnet run sheetsDownload "https://docs.google.com/spreadsheets/d/1aI3tU5cELbUwYWanWs8Stal6lEDVTEbCNZu32R0IazA/edit?usp=sharing" --folder=tempwork
 ```
+
+#### Google Sheets API v4経由でのダウンロード（高信頼方式）🆕
+**データ欠損問題を解決する推奨方式**
+
+```bash
+# Google Sheets API経由でのダウンロード（アプリケーションデフォルト認証）
+dotnet run sheetsApi <Google SheetsURL>
+
+# サービスアカウントキーファイルを使用
+dotnet run sheetsApi <Google SheetsURL> --key=service-account.json
+
+# 指定したシートのみAPI経由でダウンロード
+dotnet run sheetsApi <Google SheetsURL> sheet1 sheet2
+
+# カスタムフォルダ + サービスアカウント認証
+dotnet run sheetsApi <Google SheetsURL> --folder=output --key=path/to/key.json
+
+# 変換後クリーンアップ + API方式
+dotnet run sheetsApi <Google SheetsURL> --cleanup --key=service-account.json
+
+# すべてのオプションを組み合わせ
+dotnet run sheetsApi <Google SheetsURL> --folder=data --cleanup --key=path/to/key.json sheet1 sheet2
+```
+
+**Google Sheets API認証設定方法：**
+1. **アプリケーションデフォルト認証**: `gcloud auth application-default login` 実行後、認証情報が自動的に使用されます
+2. **サービスアカウントキー**: GCPコンソールでサービスアカウントを作成し、JSONキーファイルを `--key` オプションで指定
+3. **環境変数認証**: `GOOGLE_APPLICATION_CREDENTIALS_JSON` 環境変数にサービスアカウントJSONを設定
 
 ## 使用例
 
@@ -78,6 +110,7 @@ dotnet run dump data.csv
 
 ### Google Sheetsダウンロードの使用例
 
+#### HTTP方式（従来）
 ```bash
 # 基本的なダウンロード（デフォルトシートをdownloads/フォルダに）
 dotnet run sheetsDownload "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit"
@@ -90,6 +123,21 @@ dotnet run sheetsDownload "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/
 
 # 開発時の部分更新（特定シートのみ、クリーンアップなし）
 dotnet run sheetsDownload "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit" --folder=dev_data messages
+```
+
+#### Google Sheets API方式（推奨）🆕
+```bash
+# 高信頼ダウンロード（データ欠損なし）
+dotnet run sheetsApi "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit"
+
+# サービスアカウント認証での本番環境用
+dotnet run sheetsApi "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit" --key=prod-service-account.json --folder=assets/data --cleanup
+
+# 開発環境での部分更新（API方式）
+dotnet run sheetsApi "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit" --folder=dev_data messages commands
+
+# CI/CD パイプライン用（サービスアカウント + 自動クリーンアップ）
+dotnet run sheetsApi "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit" --key=$SERVICE_ACCOUNT_KEY_PATH --folder=build/data --cleanup
 ```
 
 ## ビルド方法
@@ -111,8 +159,22 @@ dotnet build MasterDataSheetParser.csproj --configuration Release
 
 ## 機能
 
-### Google Sheetsダウンロードモード（New!）
-- Google SheetsのURLから直接CSVをダウンロードし、JSON形式に自動変換
+### Google Sheetsダウンロードモード
+**2つのダウンロード方式を提供：**
+
+#### HTTP方式（sheetsDownload）
+- Google SheetsのパブリックCSVエクスポートURLを使用した従来方式
+- 認証不要で手軽に使用可能
+- 一部のデータで欠損が発生する場合があります
+
+#### Google Sheets API v4方式（sheetsApi）🆕
+- **データ欠損問題を解決する推奨方式**
+- Google公式APIを使用した高信頼データ取得
+- 3種類の認証方式をサポート（ADC、サービスアカウントキー、環境変数）
+- CSVエスケープ処理の完全対応
+- より安定したデータ整合性を保証
+
+#### 共通機能
 - デフォルトシート（messages, commands, inventories, actors）の一括ダウンロード
 - カスタムシート名の指定による部分的なデータ取得
 - `--folder=フォルダ名` による出力先フォルダのカスタマイズ
@@ -204,23 +266,48 @@ dotnet test
 
 ## 新機能のワークフロー例
 
-### 開発フェーズ
+### 開発フェーズ（Quick & Easy）
 1. Google Sheetsでマスターデータを編集
-2. `dotnet run sheetsDownload "URL" --folder=dev_data` でローカルに開発用データを取得
+2. `dotnet run sheetsDownload "URL" --folder=dev_data` でローカルに開発用データを取得（認証不要）
 3. ゲーム内でテスト・調整
+4. Google Sheetsを再編集して手順2からリピート
+
+### 開発フェーズ（High Reliability）
+1. Google Sheetsでマスターデータを編集
+2. `dotnet run sheetsApi "URL" --folder=dev_data` でAPIによる高信頼データ取得
+3. ゲーム内でテスト・調整（データ欠損なし）
 4. Google Sheetsを再編集して手順2からリピート
 
 ### プロダクション配布
 1. Google Sheetsで最終調整完了
-2. `dotnet run sheetsDownload "URL" --folder=assets/data --cleanup` でクリーンな本番用JSONファイル生成
+2. `dotnet run sheetsApi "URL" --folder=assets/data --cleanup --key=prod-service-account.json` でクリーンな本番用JSONファイル生成
 3. 生成されたJSONファイルをゲームビルドに含めて配布
+
+### CI/CDパイプライン統合
+1. Google Sheets更新をトリガーに自動ビルド開始
+2. `dotnet run sheetsApi "URL" --folder=build/data --cleanup --key=$SERVICE_ACCOUNT_KEY` で自動データ取得
+3. テスト実行後、自動デプロイ
 
 ### 部分更新
 1. 特定のシート（例：commands）のみ更新したい場合
-2. `dotnet run sheetsDownload "URL" --folder=assets/data --cleanup commands` で必要な分のみ取得
+2. `dotnet run sheetsApi "URL" --folder=assets/data --cleanup commands` でAPI経由の必要な分のみ取得
 3. 他のマスターデータはそのまま維持
 
-## 既知の課題
+## 既知の課題と制限
 
-- 現状では、is_arrayによるグループ集計の設定が一箇所でしか利用できない状態。
+### 一般的な制限
+- 現状では、is_arrayによるグループ集計の設定が一箇所でしか利用できない状態
+
+### HTTP方式（sheetsDownload）
 - Google Sheetsの公開権限が必要（エクスポート用URLにアクセスするため）
+- **データ欠損が発生する場合がある**（特定の文字エンコードや特殊文字を含むセルで問題が生じる可能性）
+
+### Google Sheets API方式（sheetsApi）
+- GCP プロジェクトでGoogle Sheets APIの有効化が必要
+- 認証設定（サービスアカウント作成またはADC設定）が必要
+- API レート制限の適用（通常の使用では問題になりませんが、大量リクエスト時は注意）
+
+### 推奨事項
+- **本番環境やデータ整合性が重要な用途では `sheetsApi` モードの使用を強く推奨**
+- 開発・テスト用途では手軽さ重視で `sheetsDownload` モードも利用可能
+- CI/CDパイプラインではサービスアカウント認証での `sheetsApi` モードが最適

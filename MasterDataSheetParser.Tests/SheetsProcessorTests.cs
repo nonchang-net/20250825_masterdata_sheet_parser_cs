@@ -142,4 +142,57 @@ public class SheetsProcessorTests
             }
         }
     }
+
+    /// <summary>
+    /// DownloadMethod列挙型のテスト
+    /// </summary>
+    [Fact]
+    public void DownloadMethod_EnumValues_AreCorrectlyDefined()
+    {
+        // Arrange & Act
+        var httpDownload = SheetsProcessor.DownloadMethod.HttpCsvDownload;
+        var apiDownload = SheetsProcessor.DownloadMethod.GoogleSheetsApi;
+        
+        // Assert
+        Assert.Equal(0, (int)httpDownload);
+        Assert.Equal(1, (int)apiDownload);
+    }
+
+    /// <summary>
+    /// Google Sheets API方式での処理テスト（無効なURL）
+    /// </summary>
+    [Fact]
+    public async Task ProcessGoogleSheetsToJsonAsync_WithApiMethod_InvalidUrl_ReturnsFalse()
+    {
+        // Arrange
+        string invalidUrl = "https://example.com/invalid";
+
+        // Act
+        bool result = await SheetsProcessor.ProcessGoogleSheetsToJsonAsync(
+            invalidUrl, 
+            "test_downloads",
+            downloadMethod: SheetsProcessor.DownloadMethod.GoogleSheetsApi);
+
+        // Assert
+        Assert.False(result);
+    }
+
+    /// <summary>
+    /// HTTP方式での処理テスト（明示的指定、無効なURL）
+    /// </summary>
+    [Fact]
+    public async Task ProcessGoogleSheetsToJsonAsync_WithHttpMethod_InvalidUrl_ReturnsFalse()
+    {
+        // Arrange
+        string invalidUrl = "https://example.com/invalid";
+
+        // Act
+        bool result = await SheetsProcessor.ProcessGoogleSheetsToJsonAsync(
+            invalidUrl, 
+            "test_downloads",
+            downloadMethod: SheetsProcessor.DownloadMethod.HttpCsvDownload);
+
+        // Assert
+        Assert.False(result);
+    }
 }

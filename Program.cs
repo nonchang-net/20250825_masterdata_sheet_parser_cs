@@ -20,7 +20,7 @@ public class Program
         if (args.Length == 0)
         {
             Console.WriteLine("使用方法: dotnet run [出力モード] <CSVファイルパス/フォルダパス/Google SheetsURL> [オプション/シート名...]");
-            Console.WriteLine("出力モード: json2 (デフォルト), json, dump, batchConvert, または sheetsDownload");
+            Console.WriteLine("出力モード: json2 (デフォルト), json, dump, batchConvert, sheetsDownload, または sheetsApi");
             Console.WriteLine("");
             Console.WriteLine("基本的な使用例:");
             Console.WriteLine("  dotnet run data.csv                           (JSON2出力)");
@@ -40,6 +40,14 @@ public class Program
             Console.WriteLine("    (変換後にCSVファイルを削除)");
             Console.WriteLine("  dotnet run sheetsDownload <URL> --folder=data --cleanup sheet1 sheet2");
             Console.WriteLine("    (data/ フォルダに指定シートをダウンロード後、CSVを削除)");
+            Console.WriteLine("");
+            Console.WriteLine("Google Sheets API (高信頼モード):");
+            Console.WriteLine("  dotnet run sheetsApi <Google SheetsURL>");
+            Console.WriteLine("    (Google Sheets API経由: より高信頼でデータ欠損のないダウンロード)");
+            Console.WriteLine("  dotnet run sheetsApi <URL> --key=service-account.json");
+            Console.WriteLine("    (サービスアカウントキーファイルを使用)");
+            Console.WriteLine("  dotnet run sheetsApi <URL> --cleanup --key=path/to/key.json sheet1 sheet2");
+            Console.WriteLine("    (指定シートをAPIでダウンロード後、CSVを削除)");
             return 1;
         }
 
@@ -49,6 +57,7 @@ public class Program
         List<string>? additionalSheets = null;
         string downloadFolder = "downloads"; // デフォルトフォルダ
         bool cleanupCsv = false;
+        string? serviceAccountKeyPath = null;
         
         if (args.Length == 1)
         {
@@ -59,21 +68,21 @@ public class Program
         {
             // 出力モードとファイルパスが指定された場合
             string firstArg = args[0].ToLower();
-            if (firstArg == "json" || firstArg == "json2" || firstArg == "dump" || firstArg == "batchconvert" || firstArg == "sheetsdownload")
+            if (firstArg == "json" || firstArg == "json2" || firstArg == "dump" || firstArg == "batchconvert" || firstArg == "sheetsdownload" || firstArg == "sheetsapi")
             {
                 outputMode = firstArg;
                 csvFilePath = args[1];
                 
-                // sheetsDownloadモードで追加のオプションが指定されている場合
-                if (firstArg == "sheetsdownload" && args.Length > 2)
+                // sheetsDownloadまたはsheetsApiモードで追加のオプションが指定されている場合
+                if ((firstArg == "sheetsdownload" || firstArg == "sheetsapi") && args.Length > 2)
                 {
                     // オプションとシート名を解析
-                    ParseSheetsDownloadOptions(args[2..], out downloadFolder, out cleanupCsv, out additionalSheets);
+                    ParseSheetsDownloadOptions(args[2..], out downloadFolder, out cleanupCsv, out additionalSheets, out serviceAccountKeyPath);
                 }
             }
             else
             {
-                Console.WriteLine("エラー: 無効な出力モードです。'json', 'json2', 'dump', 'batchConvert', または 'sheetsDownload' を指定してください。");
+                Console.WriteLine("エラー: 無効な出力モードです。'json', 'json2', 'dump', 'batchConvert', 'sheetsDownload', または 'sheetsApi' を指定してください。");
                 return 1;
             }
         }
@@ -92,7 +101,7 @@ public class Program
                 return 1;
             }
         }
-        else if (outputMode == "sheetsdownload")
+        else if (outputMode == "sheetsdownload" || outputMode == "sheetsapi")
         {
             // Google Sheets URLの場合は存在確認をスキップ
             if (!csvFilePath.Contains("docs.google.com/spreadsheets"))
@@ -134,8 +143,13 @@ public class Program
             }
             else if (outputMode == "sheetsdownload")
             {
-                // Google Sheetsダウンロード処理（非同期）
-                return ProcessGoogleSheetsAsync(csvFilePath, downloadFolder, additionalSheets, cleanupCsv).GetAwaiter().GetResult();
+                // Google Sheetsダウンロード処理（HTTP方式、非同期）
+                return ProcessGoogleSheetsAsync(csvFilePath, downloadFolder, additionalSheets, cleanupCsv, SheetsProcessor.DownloadMethod.HttpCsvDownload, serviceAccountKeyPath).GetAwaiter().GetResult();
+            }
+            else if (outputMode == "sheetsapi")
+            {
+                // Google Sheets APIダウンロード処理（API方式、非同期）
+                return ProcessGoogleSheetsAsync(csvFilePath, downloadFolder, additionalSheets, cleanupCsv, SheetsProcessor.DownloadMethod.GoogleSheetsApi, serviceAccountKeyPath).GetAwaiter().GetResult();
             }
             else
             {
@@ -159,13 +173,21 @@ public class Program
     /// <param name="downloadFolder">ダウンロード先フォルダ</param>
     /// <param name="sheetNames">ダウンロードするシート名のリスト</param>
     /// <param name="cleanupCsv">CSVファイルをクリーンアップするかどうか</param>
+    /// <param name="downloadMethod">ダウンロード方法</param>
+    /// <param name="serviceAccountKeyPath">サービスアカウントキーファイルのパス</param>
     /// <returns>処理が成功した場合は0、失敗した場合は1</returns>
-    private static async Task<int> ProcessGoogleSheetsAsync(string spreadsheetUrl, string downloadFolder = "downloads", IEnumerable<string>? sheetNames = null, bool cleanupCsv = false)
+    private static async Task<int> ProcessGoogleSheetsAsync(
+        string spreadsheetUrl, 
+        string downloadFolder = "downloads", 
+        IEnumerable<string>? sheetNames = null, 
+        bool cleanupCsv = false,
+        SheetsProcessor.DownloadMethod downloadMethod = SheetsProcessor.DownloadMethod.HttpCsvDownload,
+        string? serviceAccountKeyPath = null)
     {
         try
         {
             // Google Sheetsから変換処理を実行
-            bool success = await SheetsProcessor.ProcessGoogleSheetsToJsonAsync(spreadsheetUrl, downloadFolder, sheetNames, cleanupCsv);
+            bool success = await SheetsProcessor.ProcessGoogleSheetsToJsonAsync(spreadsheetUrl, downloadFolder, sheetNames, cleanupCsv, downloadMethod, serviceAccountKeyPath);
             
             if (success)
             {
@@ -192,11 +214,13 @@ public class Program
     /// <param name="downloadFolder">ダウンロード先フォルダ（出力パラメータ）</param>
     /// <param name="cleanupCsv">CSVクリーンアップフラグ（出力パラメータ）</param>
     /// <param name="sheetNames">シート名リスト（出力パラメータ）</param>
-    private static void ParseSheetsDownloadOptions(string[] options, out string downloadFolder, out bool cleanupCsv, out List<string>? sheetNames)
+    /// <param name="serviceAccountKeyPath">サービスアカウントキーファイルパス（出力パラメータ）</param>
+    private static void ParseSheetsDownloadOptions(string[] options, out string downloadFolder, out bool cleanupCsv, out List<string>? sheetNames, out string? serviceAccountKeyPath)
     {
         downloadFolder = "downloads"; // デフォルト
         cleanupCsv = false;
         sheetNames = null;
+        serviceAccountKeyPath = null;
         
         var sheets = new List<string>();
         
@@ -212,6 +236,14 @@ public class Program
                 if (string.IsNullOrWhiteSpace(downloadFolder))
                 {
                     downloadFolder = "downloads";
+                }
+            }
+            else if (option.StartsWith("--key="))
+            {
+                serviceAccountKeyPath = option.Substring("--key=".Length);
+                if (string.IsNullOrWhiteSpace(serviceAccountKeyPath))
+                {
+                    serviceAccountKeyPath = null;
                 }
             }
             else if (!option.StartsWith("--"))

@@ -11,14 +11,33 @@ namespace MasterDataSheetParser;
 public class SheetsProcessor
 {
     /// <summary>
+    /// データ取得方法の種類
+    /// </summary>
+    public enum DownloadMethod
+    {
+        /// <summary>HTTP経由でのCSVダウンロード（既存方式）</summary>
+        HttpCsvDownload,
+        /// <summary>Google Sheets API v4を使用したダウンロード</summary>
+        GoogleSheetsApi
+    }
+
+    /// <summary>
     /// Google Sheetsからデータを取得してJSONに変換する統合処理
     /// </summary>
     /// <param name="spreadsheetUrl">Google SheetsのURL</param>
     /// <param name="downloadFolder">CSVダウンロード先フォルダ（デフォルト: downloads/）</param>
     /// <param name="sheetNames">ダウンロードするシート名のリスト（nullの場合はデフォルトのシート名を使用）</param>
     /// <param name="cleanupCsv">変換後にCSVファイルを削除する場合はtrue（デフォルト: false）</param>
+    /// <param name="downloadMethod">データ取得方法（デフォルト: HttpCsvDownload）</param>
+    /// <param name="serviceAccountKeyPath">Google Sheets API使用時のサービスアカウントキーファイルパス（nullの場合はアプリケーションデフォルト認証を使用）</param>
     /// <returns>処理が成功した場合はtrue</returns>
-    public static async Task<bool> ProcessGoogleSheetsToJsonAsync(string spreadsheetUrl, string downloadFolder = "downloads", IEnumerable<string>? sheetNames = null, bool cleanupCsv = false)
+    public static async Task<bool> ProcessGoogleSheetsToJsonAsync(
+        string spreadsheetUrl, 
+        string downloadFolder = "downloads", 
+        IEnumerable<string>? sheetNames = null, 
+        bool cleanupCsv = false,
+        DownloadMethod downloadMethod = DownloadMethod.HttpCsvDownload,
+        string? serviceAccountKeyPath = null)
     {
         try
         {
@@ -50,9 +69,9 @@ public class SheetsProcessor
             }
             
             // 複数シートを一括ダウンロード
-            Console.WriteLine("\n=== CSVファイルダウンロード開始 ===");
-            bool downloadSuccess = await GoogleSheetsDownloader.DownloadMultipleSheetsAsync(
-                spreadsheetId, targetSheetNames, absoluteDownloadFolder);
+            Console.WriteLine($"\n=== CSVファイルダウンロード開始 ({downloadMethod}) ===");
+            bool downloadSuccess = await DownloadSheetsAsync(
+                spreadsheetId, targetSheetNames, absoluteDownloadFolder, downloadMethod, serviceAccountKeyPath);
                 
             if (!downloadSuccess)
             {
@@ -86,6 +105,71 @@ public class SheetsProcessor
         {
             Console.WriteLine($"エラー: 処理中に例外が発生しました - {ex.Message}");
             return false;
+        }
+    }
+
+    /// <summary>
+    /// 指定された方法でシートをダウンロード
+    /// </summary>
+    /// <param name="spreadsheetId">スプレッドシートID</param>
+    /// <param name="sheetNames">ダウンロードするシート名のリスト</param>
+    /// <param name="downloadFolder">ダウンロード先フォルダ</param>
+    /// <param name="downloadMethod">ダウンロード方法</param>
+    /// <param name="serviceAccountKeyPath">サービスアカウントキーファイルパス</param>
+    /// <returns>すべてのダウンロードが成功した場合はtrue</returns>
+    private static async Task<bool> DownloadSheetsAsync(
+        string spreadsheetId, 
+        IEnumerable<string> sheetNames, 
+        string downloadFolder, 
+        DownloadMethod downloadMethod,
+        string? serviceAccountKeyPath)
+    {
+        return downloadMethod switch
+        {
+            DownloadMethod.HttpCsvDownload => 
+                await GoogleSheetsDownloader.DownloadMultipleSheetsAsync(spreadsheetId, sheetNames, downloadFolder),
+            
+            DownloadMethod.GoogleSheetsApi => 
+                await DownloadViaGoogleSheetsApiAsync(spreadsheetId, sheetNames, downloadFolder, serviceAccountKeyPath),
+                
+            _ => throw new ArgumentException($"サポートされていないダウンロード方法です: {downloadMethod}")
+        };
+    }
+
+    /// <summary>
+    /// Google Sheets API v4を使用してシートをダウンロード
+    /// </summary>
+    /// <param name="spreadsheetId">スプレッドシートID</param>
+    /// <param name="sheetNames">ダウンロードするシート名のリスト</param>
+    /// <param name="downloadFolder">ダウンロード先フォルダ</param>
+    /// <param name="serviceAccountKeyPath">サービスアカウントキーファイルパス</param>
+    /// <returns>すべてのダウンロードが成功した場合はtrue</returns>
+    private static async Task<bool> DownloadViaGoogleSheetsApiAsync(
+        string spreadsheetId, 
+        IEnumerable<string> sheetNames, 
+        string downloadFolder,
+        string? serviceAccountKeyPath)
+    {
+        GoogleSheetsApiDownloader? downloader = null;
+        try
+        {
+            // 認証方法を決定
+            var authType = string.IsNullOrEmpty(serviceAccountKeyPath) 
+                ? GoogleSheetsApiDownloader.AuthenticationType.ApplicationDefault
+                : GoogleSheetsApiDownloader.AuthenticationType.ServiceAccountKey;
+            
+            downloader = new GoogleSheetsApiDownloader(authType, serviceAccountKeyPath);
+            
+            return await downloader.DownloadMultipleSheetsAsync(spreadsheetId, sheetNames, downloadFolder);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"エラー: Google Sheets API によるダウンロードに失敗しました - {ex.Message}");
+            return false;
+        }
+        finally
+        {
+            downloader?.Dispose();
         }
     }
     

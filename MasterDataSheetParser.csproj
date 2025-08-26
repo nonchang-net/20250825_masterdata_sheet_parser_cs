@@ -11,4 +11,8 @@
     <Compile Remove="MasterDataSheetParser.Tests/**" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Google.Apis.Sheets.v4" Version="1.70.0.3819" />
+  </ItemGroup>
+
 </Project>
