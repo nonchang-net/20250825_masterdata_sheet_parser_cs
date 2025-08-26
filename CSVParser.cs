@@ -231,23 +231,28 @@ public class CSVParser
         // 1列目が空でない場合はメイン行
         if (!string.IsNullOrWhiteSpace(row[0])) return true;
         
-        // 配列行の判定：is_arrayフラグがfalseのカラムにデータがあるかチェック
+        // 配列行の判定：is_arrayフラグがfalseのカラムで重要なカラム（id, name等）にデータがあるかチェック
         int dataStartIndex = 1;
         
         for (int i = 0; i < columnNames.Count && (i + dataStartIndex) < row.Length; i++)
         {
+            var columnName = columnNames[i];
             var isArrayColumn = i < isArrayFlags.Count && isArrayFlags[i];
+            var cellValue = row[i + dataStartIndex].Trim();
             
-            if (!isArrayColumn) // is_arrayフラグがfalseのカラム
+            // is_arrayフラグがfalseで、かつ重要なカラム（id, name）にデータがある場合のみメイン行と判定
+            if (!isArrayColumn && !string.IsNullOrWhiteSpace(cellValue))
             {
-                if (!string.IsNullOrWhiteSpace(row[i + dataStartIndex]))
+                // id, name カラムにデータがある場合のみメイン行と判定
+                if (columnName.Equals("id", StringComparison.OrdinalIgnoreCase) || 
+                    columnName.Equals("name", StringComparison.OrdinalIgnoreCase))
                 {
-                    return true; // 非配列カラムにデータがある場合はメイン行
+                    return true;
                 }
             }
         }
         
-        return false; // is_arrayカラムのみにデータがある場合は配列データ行
+        return false; // is_arrayカラムのみにデータがある、またはid/name以外のカラムのみにデータがある場合は配列データ行
     }
 
     /// <summary>
